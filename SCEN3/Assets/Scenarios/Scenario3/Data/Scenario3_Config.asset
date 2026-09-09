@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2dc0dcc23f914a448b9ecf807afc4ef7, type: 3}
+  m_Name: Scenario3_Config
+  m_EditorClassIdentifier: Assembly-CSharp::ScenarioDataSO
+  scenarioNumber: 3
+  title: 'Scenario 3: The Fake Link Hijacking'
+  description: A friend's hacked Telegram sends an urgent survey link. Inspect the
+    URL, refuse QR device linking, and enable 2FA.
+  setting: Home Study Room
+  threatType: Session Hijacking & QR Phishing
+  sceneName: Scenario3
+  maxXP: 200
+  redFlags:
+  - {fileID: 11400000, guid: dc71e949868443543b268e592f1cf261, type: 2}
+  - {fileID: 11400000, guid: 4ec33b76cc1d9a94d839c32260df565f, type: 2}
+  - {fileID: 11400000, guid: 859fd04e28cf1844b8b9bff041b292d2, type: 2}
+  - {fileID: 11400000, guid: d64faeb23552ced448b20461632754db, type: 2}
+  thumbnail: {fileID: 0}
+  isAvailable: 1
