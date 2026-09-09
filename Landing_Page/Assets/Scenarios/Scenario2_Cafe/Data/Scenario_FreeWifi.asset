@@ -1,0 +1,22 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46506d7c9b08cf144bf8bddf0a0907d0, type: 3}
+  m_Name: Scenario_FreeWifi
+  m_EditorClassIdentifier: Assembly-CSharp::ScenarioData
+  title: Free WiFi Trap
+  description: "No password, no login page \u2014 is this coffee shop WiFi actually
+    safe to join?"
+  tags:
+  - Network Security
+  - Public WiFi
+  thumbnail: {fileID: 21300000, guid: 057b91dfb2cb6bd46a4fa7d37a77f4ac, type: 3}
+  sceneToLoad: Scenario_FreeWifi
