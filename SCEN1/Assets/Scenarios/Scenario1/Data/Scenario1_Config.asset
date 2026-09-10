@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33c64e011b93c5b4885f2617da5e5383, type: 3}
+  m_Name: Scenario1_Config
+  m_EditorClassIdentifier: Assembly-CSharp::CADT.VR.Core.ScenarioDataSO
+  scenarioId: SCENARIO_01
+  scenarioTitle: Spear Phishing & Disguised Dropper
+  scenarioSubtitle: Workstation Endpoint Breach
+  targetSceneName: Scenario1
+  threatType: Social Engineering / Malicious Dropper
+  estimatedMinutes: 5
+  totalPossibleXP: 100
+  scenarioBriefing: You receive an urgent message from HR on Telegram containing
+    an attached bonus slip. Analyze the file and workstation activity to stop the
+    payload.
+  debriefTakeaways: Always inspect file extensions, verify unexpected attachments
+    out-of-band, and isolate host machines immediately upon identifying active malware.
+  redFlags:
+  - {fileID: 11400000, guid: 5a252126d2192ce439ad57f448bc55be, type: 2}
+  - {fileID: 11400000, guid: f02bd5111876dd34fbf19e1fce9031d3, type: 2}
+  - {fileID: 11400000, guid: dd68dad1441d31c4faeed0e5bdd95ae3, type: 2}
+  - {fileID: 11400000, guid: cfd02c9ea18067442899704c24516f23, type: 2}

@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62be18079c40c3347ba9101861e27417, type: 3}
+  m_Name: RedFlag4
+  m_EditorClassIdentifier: Assembly-CSharp::CADT.VR.Core.RedFlagSO
+  flagId: RF1_CMD
+  flagTitle: Unauthorized PowerShell Spawn
+  category: 3
+  xpValue: 25
+  isCritical: 1
+  description: Background process attempted to execute hidden base64 PowerShell command.
+  hint: Use Task Manager and terminal inspection to catch living-off-the-land attacks.
