@@ -136,8 +136,13 @@ Packages/packages-lock.json linguist-generated
 *.exr                   lfs
 *.hdr                   lfs
 *.tif                   lfs
+*.TIF                   lfs
 *.tiff                  lfs
+*.TIFF                  lfs
 *.tga                   lfs
+*.TGA                   lfs
+*.psd                   lfs
+*.PSD                   lfs
 
 # Fonts
 *.otf                   lfs
