@@ -1,1 +1,0 @@
-Old API for project settings that gets embedded into the project in runtime
