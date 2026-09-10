@@ -31,7 +31,7 @@ public class CarouselController : MonoBehaviour
             setting = "Corporate Office",
             threatType = "Email Phishing & Malware",
             maxXP = 200,
-            isAvailable = false
+            isAvailable = true
         },
         new ScenarioData
         {
@@ -41,7 +41,7 @@ public class CarouselController : MonoBehaviour
             setting = "Public Coffee Shop",
             threatType = "Wi-Fi Man-in-the-Middle",
             maxXP = 200,
-            isAvailable = false
+            isAvailable = true
         },
         new ScenarioData
         {
