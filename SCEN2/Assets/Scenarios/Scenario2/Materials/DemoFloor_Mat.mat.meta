@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 8792eb59f2550094a90cc8510b06f51d
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 398826
+  packageName: Modern Laptop 3D Model - URP
+  packageVersion: 1.0
+  assetPath: Assets/Laptop/material/DemoFloor_Mat.mat
+  uploadId: 970796
