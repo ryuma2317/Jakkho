@@ -85,3 +85,7 @@ Thumbs.db
 **/[Aa]ssets/Addressables_Temp*
 GeneratedAssets/
 **/GeneratedAssets/
+*.log
+**/*.log
+unity_output.txt
+**/unity_output.txt
