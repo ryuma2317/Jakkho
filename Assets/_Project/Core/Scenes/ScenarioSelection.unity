@@ -1974,7 +1974,7 @@ MonoBehaviour:
     threatType: Email Phishing & Malware
     maxXP: 200
     thumbnail: {fileID: 0}
-    isAvailable: 0
+    isAvailable: 1
   - scenarioNumber: 2
     title: 'Scenario 2: Evil Twin at the Cafe'
     description: Detect rogue public Wi-Fi access points and SSL stripping attacks
@@ -1983,7 +1983,7 @@ MonoBehaviour:
     threatType: Wi-Fi Man-in-the-Middle
     maxXP: 200
     thumbnail: {fileID: 0}
-    isAvailable: 0
+    isAvailable: 1
   - scenarioNumber: 3
     title: 'Scenario 3: The Fake Link Hijacking'
     description: A friend's hacked Telegram sends an urgent survey link for their
