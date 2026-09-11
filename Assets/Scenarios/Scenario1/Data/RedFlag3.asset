@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 62be18079c40c3347ba9101861e27417, type: 3}
+  m_Script: {fileID: 11500000, guid: 76671795a60ddca46910ac6f8da6b238, type: 3}
   m_Name: RedFlag3
   m_EditorClassIdentifier: Assembly-CSharp::CADT.VR.Core.RedFlagSO
   flagId: RF1_URG

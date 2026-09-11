@@ -1,7 +1,5 @@
-﻿using System;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Events;
-using CADT.VR.Core;
 
 namespace CADT.VR.Scenarios.Scenario1
 {
@@ -14,6 +12,7 @@ namespace CADT.VR.Scenarios.Scenario1
     public class Scenario1_SpearPhishingManager : ScenarioManager
     {
         [Header("--- Scenario 1 Elements ---")]
+        [SerializeField] private ScenarioDataSO scenarioData;
         [SerializeField] private GameObject workstationMonitor;
         [SerializeField] private GameObject suspiciousAttachment;
         [SerializeField] private GameObject deskPhone;
@@ -25,27 +24,21 @@ namespace CADT.VR.Scenarios.Scenario1
 
         public void InspectAttachment()
         {
-            if (scenarioData != null && scenarioData.RedFlags.Count > 0)
-                scoreTracker.RecordRedFlag(scenarioData.RedFlags[0]);
-
+            RegisterRedFlag("RF1_EXT");
             onAttachmentInspected?.Invoke();
         }
 
         public void CallCoworkerToVerify()
         {
-            if (scenarioData != null && scenarioData.RedFlags.Count > 1)
-                scoreTracker.RecordRedFlag(scenarioData.RedFlags[1]);
-
+            RegisterRedFlag("RF1_HDR");
             onPhoneVerified?.Invoke();
         }
 
         public void QuarantineFile()
         {
-            if (scenarioData != null && scenarioData.RedFlags.Count > 2)
-                scoreTracker.RecordRedFlag(scenarioData.RedFlags[2]);
-
+            RegisterRedFlag("RF1_CMD");
             onQuarantineExecuted?.Invoke();
-            CompleteScenario(true);
+            CompleteScenario(OutcomeType.Success);
         }
     }
 }

@@ -1,7 +1,6 @@
 ﻿using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using CADT.VR.Core;
 
 namespace CADT.VR.Scenarios.Scenario1.Editor
 {

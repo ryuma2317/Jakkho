@@ -16,6 +16,7 @@ public class VRInteractiveSmartphone : MonoBehaviour
     public enum PhoneState
     {
         LockScreen,
+        ReadyToCall,
         IncomingCall,
         InCall,
         QRScanner,
@@ -29,6 +30,7 @@ public class VRInteractiveSmartphone : MonoBehaviour
 
     [Header("Screen UI Panels")]
     [SerializeField] private GameObject lockScreenPanel;
+    [SerializeField] private GameObject readyToCallPanel;
     [SerializeField] private GameObject incomingCallPanel;
     [SerializeField] private GameObject inCallPanel;
     [SerializeField] private GameObject qrScannerPanel;
@@ -45,17 +47,21 @@ public class VRInteractiveSmartphone : MonoBehaviour
     [SerializeField] private Image scannerReticleImage;
     [SerializeField] private Button answerCallButton;
     [SerializeField] private Button rejectCallButton;
+    [SerializeField] private Button endCallButton;
+    [SerializeField] private Button callSopheaButton;      // player-initiated call (out-of-band verification)
     [SerializeField] private Button authorizeLoginButton; // Failure path
     [SerializeField] private Button rejectLoginButton;    // Success path
 
     [Header("Scanning Targets")]
     [SerializeField] private Transform qrTargetTransform;
-    [SerializeField] private float maxScanDistance = 2.5f;
-    [SerializeField] private float scanAimAngleThreshold = 35f;
+    [SerializeField] private float maxScanDistance = 4f;
+    [SerializeField] private float scanAimAngleThreshold = 70f;
+    [SerializeField] private float viewAimAngleThreshold = 22f; // look-at-QR fallback (no grab needed)
 
     [Header("Audio & Haptics")]
     [SerializeField] private AudioSource phoneAudioSource;
     [SerializeField] private AudioClip ringtoneClip;
+    [SerializeField] private AudioClip notificationClip;
     [SerializeField] private AudioClip scanBeepClip;
     [SerializeField] private AudioClip successClip;
     [SerializeField] private AudioClip alertClip;
@@ -64,7 +70,7 @@ public class VRInteractiveSmartphone : MonoBehaviour
     private bool isGrabbed = false;
     private UnityEngine.XR.Interaction.Toolkit.Interactors.IXRSelectInteractor holdingInteractor;
     private float scanProgress = 0f;
-    private const float ScanDurationNeeded = 0.85f;
+    private const float ScanDurationNeeded = 0.6f;
     private Transform mainCameraTransform;
 
     public PhoneState CurrentState => currentState;
@@ -120,6 +126,8 @@ public class VRInteractiveSmartphone : MonoBehaviour
     {
         if (answerCallButton != null) answerCallButton.onClick.AddListener(AnswerCall);
         if (rejectCallButton != null) rejectCallButton.onClick.AddListener(HangUpCall);
+        if (endCallButton != null) endCallButton.onClick.AddListener(HangUpCall);
+        if (callSopheaButton != null) callSopheaButton.onClick.AddListener(StartOutgoingCall);
         if (authorizeLoginButton != null) authorizeLoginButton.onClick.AddListener(OnAuthorizeLoginSelected);
         if (rejectLoginButton != null) rejectLoginButton.onClick.AddListener(OnRejectLoginSelected);
     }
@@ -203,11 +211,33 @@ public class VRInteractiveSmartphone : MonoBehaviour
         Vector3 toQR = qrTargetTransform.position - transform.position;
         float distance = toQR.magnitude;
 
-        // Phone back camera points along local -Z (or +Z depending on model)
-        Vector3 cameraForward = -transform.forward; 
-        float angle = Vector3.Angle(cameraForward, toQR.normalized);
+        bool isAimingAtQR = false;
 
-        bool isAimingAtQR = (distance <= maxScanDistance) && (angle <= scanAimAngleThreshold);
+        if (distance <= maxScanDistance)
+        {
+            Vector3 dirToQR = toQR.normalized;
+
+            if (isGrabbed)
+            {
+                // Rear camera looks out through the back of the phone (-Y, since the
+                // screen faces local +Y). Also accept the holding controller's ray so
+                // desktop/simulator testing works without precise wrist aiming.
+                float backAngle = Vector3.Angle(-transform.up, dirToQR);
+                float handAngle = 999f;
+                if (holdingInteractor != null)
+                    handAngle = Vector3.Angle(holdingInteractor.transform.forward, dirToQR);
+                isAimingAtQR = backAngle <= scanAimAngleThreshold || handAngle <= scanAimAngleThreshold;
+            }
+
+            // Easy path: simply look toward the QR code while the phone is in range
+            // (the player is "pointing" the phone at the code on screen).
+            if (!isAimingAtQR && mainCameraTransform != null)
+            {
+                float lookAngle = Vector3.Angle(mainCameraTransform.forward,
+                    (qrTargetTransform.position - mainCameraTransform.position).normalized);
+                isAimingAtQR = lookAngle <= viewAimAngleThreshold;
+            }
+        }
 
         if (isAimingAtQR)
         {
@@ -253,6 +283,7 @@ public class VRInteractiveSmartphone : MonoBehaviour
         currentState = newState;
 
         if (lockScreenPanel != null) lockScreenPanel.SetActive(newState == PhoneState.LockScreen);
+        if (readyToCallPanel != null) readyToCallPanel.SetActive(newState == PhoneState.ReadyToCall);
         if (incomingCallPanel != null) incomingCallPanel.SetActive(newState == PhoneState.IncomingCall);
         if (inCallPanel != null) inCallPanel.SetActive(newState == PhoneState.InCall);
         if (qrScannerPanel != null) qrScannerPanel.SetActive(newState == PhoneState.QRScanner);
@@ -340,6 +371,44 @@ public class VRInteractiveSmartphone : MonoBehaviour
             callStatusText.text = $"<b>{callerName}</b>\n<size=14>Incoming Telegram Voice Call...</size>";
         }
         SetPhoneState(PhoneState.IncomingCall);
+    }
+
+    /// <summary>
+    /// Shows the phone's "call contact" screen (player-initiated out-of-band verification).
+    /// Typically triggered when a suspicious message arrives on the desktop.
+    /// </summary>
+    public void OfferCallToContact(string contactName)
+    {
+        SetPhoneState(PhoneState.ReadyToCall);
+        if (phoneAudioSource != null && notificationClip != null)
+        {
+            phoneAudioSource.PlayOneShot(notificationClip);
+        }
+        TriggerHapticPulse(0.5f, 0.1f);
+        Debug.Log($"[Smartphone] Call option offered for {contactName}");
+    }
+
+    /// <summary>Player taps the Call button: dials Sophea and connects.</summary>
+    public void StartOutgoingCall()
+    {
+        if (currentState != PhoneState.ReadyToCall && currentState != PhoneState.LockScreen) return;
+
+        SetPhoneState(PhoneState.InCall);
+        TriggerHapticPulse(0.6f, 0.12f);
+
+        if (inCallDialogueText != null)
+        {
+            inCallDialogueText.text =
+                "<b>Sophea:</b>\n" +
+                "<i>\"Hey! Don't click that link! My Telegram was hijacked 10 minutes ago — " +
+                "a phishing bot is sending fake NextGen survey links to everyone in my contacts!\"</i>";
+        }
+
+        var mgr = FindObjectOfType<Scenario3_FakeLinkManager>();
+        if (mgr != null)
+        {
+            mgr.OnCallFriendClicked();
+        }
     }
 
     public void AnswerCall()
