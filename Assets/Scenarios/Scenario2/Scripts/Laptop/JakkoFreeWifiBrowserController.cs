@@ -57,6 +57,13 @@ namespace Kannko.Laptop
         [SerializeField] private TextMeshProUGUI m_WelcomeText;
         [SerializeField] private TextMeshProUGUI m_AccessInfoText;
 
+        [Header("Stop Playing Decision Panel")]
+        [Tooltip("The 'STOP PLAYING?' overlay dialog displayed when returning via the Back button.")]
+        [SerializeField] private GameObject m_StopPlayingDecisionPanel;
+        [SerializeField] private Button m_ContinueScenarioButton;
+        [SerializeField] private Button m_GetOutOfCafeButton;
+        [SerializeField] private Scenario2.Scenario2ExitController m_ExitController;
+
         [Header("VR Controller Input Actions")]
         [SerializeField] private InputActionProperty m_LeftTriggerAction;
         [SerializeField] private InputActionProperty m_RightTriggerAction;
@@ -70,6 +77,9 @@ namespace Kannko.Laptop
         public UnityEvent OnGoogleLogin = new UnityEvent();
         public UnityEvent OnFacebookLogin = new UnityEvent();
 
+        [Header("Captive Portal Simulation")]
+        [SerializeField] private CaptivePortalController m_CaptivePortalController;
+
         // Runtime state
         private float m_LastClickTime = -1f;
         private readonly List<XRRayInteractor> m_ActiveRayInteractors = new List<XRRayInteractor>();
@@ -81,6 +91,11 @@ namespace Kannko.Laptop
         public Button CloseButton => m_CloseButton;
         public Button BackButton => m_BackButton;
         public TextMeshProUGUI StatusFeedbackText => m_StatusFeedbackText;
+        public CaptivePortalController CaptivePortal => m_CaptivePortalController;
+        public GameObject StopPlayingDecisionPanel => m_StopPlayingDecisionPanel;
+        public Button ContinueScenarioButton => m_ContinueScenarioButton;
+        public Button GetOutOfCafeButton => m_GetOutOfCafeButton;
+        public Scenario2.Scenario2ExitController ExitController => m_ExitController;
 
         private void Awake()
         {
@@ -218,6 +233,44 @@ namespace Kannko.Laptop
                     if (t != null) m_AccessInfoText = t.GetComponent<TextMeshProUGUI>();
                 }
             }
+
+            if (m_CaptivePortalController == null)
+            {
+                m_CaptivePortalController = GetComponent<CaptivePortalController>();
+                if (m_CaptivePortalController == null)
+                {
+                    m_CaptivePortalController = GetComponentInChildren<CaptivePortalController>(true);
+                }
+            }
+
+            if (m_StopPlayingDecisionPanel == null && transform.parent != null)
+            {
+                Transform t = transform.parent.Find("StopPlayingDecisionPanel");
+                if (t == null) t = transform.parent.Find("EnlargedWifiPanel/StopPlayingDecisionPanel");
+                if (t != null) m_StopPlayingDecisionPanel = t.gameObject;
+            }
+
+            if (m_StopPlayingDecisionPanel != null)
+            {
+                if (m_ContinueScenarioButton == null)
+                {
+                    Transform t = m_StopPlayingDecisionPanel.transform.Find("ActionButtons/ContinueScenarioButton");
+                    if (t == null) t = m_StopPlayingDecisionPanel.transform.Find("ContinueScenarioButton");
+                    if (t != null) m_ContinueScenarioButton = t.GetComponent<Button>();
+                }
+
+                if (m_GetOutOfCafeButton == null)
+                {
+                    Transform t = m_StopPlayingDecisionPanel.transform.Find("ActionButtons/GetOutOfCafeButton");
+                    if (t == null) t = m_StopPlayingDecisionPanel.transform.Find("GetOutOfCafeButton");
+                    if (t != null) m_GetOutOfCafeButton = t.GetComponent<Button>();
+                }
+            }
+
+            if (m_ExitController == null)
+            {
+                m_ExitController = UnityEngine.Object.FindFirstObjectByType<Scenario2.Scenario2ExitController>(FindObjectsInactive.Include);
+            }
         }
 
         public void SetupButtonListeners()
@@ -230,8 +283,20 @@ namespace Kannko.Laptop
 
             if (m_BackButton != null)
             {
-                m_BackButton.onClick.RemoveListener(CloseBrowser);
-                m_BackButton.onClick.AddListener(CloseBrowser);
+                m_BackButton.onClick.RemoveListener(OnBackButtonClicked);
+                m_BackButton.onClick.AddListener(OnBackButtonClicked);
+            }
+
+            if (m_ContinueScenarioButton != null)
+            {
+                m_ContinueScenarioButton.onClick.RemoveListener(OnContinueScenarioClicked);
+                m_ContinueScenarioButton.onClick.AddListener(OnContinueScenarioClicked);
+            }
+
+            if (m_GetOutOfCafeButton != null)
+            {
+                m_GetOutOfCafeButton.onClick.RemoveListener(OnGetOutOfCafeClicked);
+                m_GetOutOfCafeButton.onClick.AddListener(OnGetOutOfCafeClicked);
             }
 
             if (m_RefreshButton != null)
@@ -256,7 +321,9 @@ namespace Kannko.Laptop
         public void RemoveButtonListeners()
         {
             if (m_CloseButton != null) m_CloseButton.onClick.RemoveListener(CloseBrowser);
-            if (m_BackButton != null) m_BackButton.onClick.RemoveListener(CloseBrowser);
+            if (m_BackButton != null) m_BackButton.onClick.RemoveListener(OnBackButtonClicked);
+            if (m_ContinueScenarioButton != null) m_ContinueScenarioButton.onClick.RemoveListener(OnContinueScenarioClicked);
+            if (m_GetOutOfCafeButton != null) m_GetOutOfCafeButton.onClick.RemoveListener(OnGetOutOfCafeClicked);
             if (m_RefreshButton != null) m_RefreshButton.onClick.RemoveListener(OnRefreshClicked);
             if (m_GoogleLoginButton != null) m_GoogleLoginButton.onClick.RemoveListener(OnGoogleLoginClicked);
             if (m_FacebookLoginButton != null) m_FacebookLoginButton.onClick.RemoveListener(OnFacebookLoginClicked);
@@ -299,6 +366,11 @@ namespace Kannko.Laptop
         {
             FindReferencesIfNull();
 
+            if (m_CaptivePortalController != null)
+            {
+                m_CaptivePortalController.ResetToInitialPortal();
+            }
+
             if (m_BrowserPanel != null)
             {
                 m_BrowserPanel.SetActive(false);
@@ -314,8 +386,84 @@ namespace Kannko.Laptop
             Debug.Log("[JakkoFreeWifiBrowserController] Browser CLOSED. Returned to laptop network interface.");
         }
 
+        /// <summary>
+        /// Handles the browser navbar BackButton click.
+        /// Closes the captive portal, restores the network interface (EnlargedWifiPanel),
+        /// and displays the 'STOP PLAYING?' scenario exit decision card on the laptop screen.
+        /// </summary>
+        public void OnBackButtonClicked()
+        {
+            if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
+            m_LastClickTime = Time.unscaledTime;
+
+            Debug.Log("[JakkoFreeWifiBrowserController] Back button clicked: Closing captive portal and presenting STOP PLAYING decision.");
+            CloseBrowser();
+            ShowStopPlayingDecision();
+        }
+
+        public void ShowStopPlayingDecision()
+        {
+            FindReferencesIfNull();
+
+            if (m_StopPlayingDecisionPanel != null)
+            {
+                m_StopPlayingDecisionPanel.SetActive(true);
+            }
+
+            EnsureCollidersAndInteractables();
+            Debug.Log("[JakkoFreeWifiBrowserController] Displayed 'STOP PLAYING?' decision panel on laptop screen.");
+        }
+
+        public void HideStopPlayingDecision()
+        {
+            if (m_StopPlayingDecisionPanel != null)
+            {
+                m_StopPlayingDecisionPanel.SetActive(false);
+            }
+        }
+
+        public void OnContinueScenarioClicked()
+        {
+            if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
+            m_LastClickTime = Time.unscaledTime;
+
+            Debug.Log("[JakkoFreeWifiBrowserController] [ Continue Scenario ] clicked: Resuming laptop Wi-Fi interaction.");
+            HideStopPlayingDecision();
+        }
+
+        public void OnGetOutOfCafeClicked()
+        {
+            if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
+            m_LastClickTime = Time.unscaledTime;
+
+            Debug.Log("[JakkoFreeWifiBrowserController] [ Get Out of This Cafe ] clicked: Transitioning to camera-facing exit confirmation.");
+            HideStopPlayingDecision();
+
+            if (m_ExitController != null)
+            {
+                m_ExitController.ShowExitConfirmation();
+            }
+            else
+            {
+                var exitCtrl = UnityEngine.Object.FindFirstObjectByType<Scenario2.Scenario2ExitController>(FindObjectsInactive.Include);
+                if (exitCtrl != null)
+                {
+                    exitCtrl.ShowExitConfirmation();
+                }
+                else
+                {
+                    Debug.LogWarning("[JakkoFreeWifiBrowserController] Scenario2ExitController not found in scene!");
+                }
+            }
+        }
+
         private void OnRefreshClicked()
         {
+            if (m_CaptivePortalController != null)
+            {
+                m_CaptivePortalController.ResetToInitialPortal();
+            }
+
             if (m_StatusFeedbackText != null)
             {
                 m_StatusFeedbackText.text = "<color=#999999>Page refreshed. Please choose a login option.</color>";
@@ -325,7 +473,7 @@ namespace Kannko.Laptop
 
         /// <summary>
         /// Handles Google Sign-In button interaction.
-        /// Provides clean visual feedback and invokes modular event for future authentication backend.
+        /// Launches the educational captive-portal security-awareness simulation.
         /// </summary>
         public void OnGoogleLoginClicked()
         {
@@ -334,16 +482,21 @@ namespace Kannko.Laptop
 
             if (m_StatusFeedbackText != null)
             {
-                m_StatusFeedbackText.text = "<color=#4CD964><b>✓ Google Authentication Successful!</b></color>\n<size=80%>Wi-Fi access granted for 2 hours. Enjoy your stay at Jakko Coffee!</size>";
+                m_StatusFeedbackText.text = "<color=#4CD964><b>Redirecting to Captive Portal...</b></color>";
             }
 
             OnGoogleLogin?.Invoke();
-            Debug.Log("[JakkoFreeWifiBrowserController] 'Continue with Google' clicked. Modular login event invoked.");
+            Debug.Log("[JakkoFreeWifiBrowserController] 'Continue with Google' clicked. Launching captive portal simulation.");
+
+            if (m_CaptivePortalController != null)
+            {
+                m_CaptivePortalController.ShowCaptivePortal("Google");
+            }
         }
 
         /// <summary>
         /// Handles Facebook Sign-In button interaction.
-        /// Provides clean visual feedback and invokes modular event for future authentication backend.
+        /// Launches the educational captive-portal security-awareness simulation.
         /// </summary>
         public void OnFacebookLoginClicked()
         {
@@ -352,11 +505,16 @@ namespace Kannko.Laptop
 
             if (m_StatusFeedbackText != null)
             {
-                m_StatusFeedbackText.text = "<color=#1877F2><b>✓ Facebook Authentication Successful!</b></color>\n<size=80%>Wi-Fi access granted for 2 hours. Enjoy your stay at Jakko Coffee!</size>";
+                m_StatusFeedbackText.text = "<color=#1877F2><b>Redirecting to Captive Portal...</b></color>";
             }
 
             OnFacebookLogin?.Invoke();
-            Debug.Log("[JakkoFreeWifiBrowserController] 'Continue with Facebook' clicked. Modular login event invoked.");
+            Debug.Log("[JakkoFreeWifiBrowserController] 'Continue with Facebook' clicked. Launching captive portal simulation.");
+
+            if (m_CaptivePortalController != null)
+            {
+                m_CaptivePortalController.ShowCaptivePortal("Facebook");
+            }
         }
 
         /// <summary>
@@ -373,7 +531,17 @@ namespace Kannko.Laptop
 
             if (m_BackButton != null)
             {
-                SetupElementColliderAndInteractable(m_BackButton.gameObject, CloseBrowser);
+                SetupElementColliderAndInteractable(m_BackButton.gameObject, OnBackButtonClicked);
+            }
+
+            if (m_ContinueScenarioButton != null)
+            {
+                SetupElementColliderAndInteractable(m_ContinueScenarioButton.gameObject, OnContinueScenarioClicked);
+            }
+
+            if (m_GetOutOfCafeButton != null)
+            {
+                SetupElementColliderAndInteractable(m_GetOutOfCafeButton.gameObject, OnGetOutOfCafeClicked);
             }
 
             if (m_RefreshButton != null)
@@ -516,13 +684,15 @@ namespace Kannko.Laptop
 
         private void HandleDesktopMouseClicks()
         {
-            if (!Input.GetMouseButtonDown(0)) return;
+            if (UnityEngine.InputSystem.Mouse.current == null ||
+                !UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) return;
 
             Camera cam = Camera.main;
             if (cam == null) return;
 
             // 1. Mouse cursor raycast
-            Ray mouseRay = cam.ScreenPointToRay(Input.mousePosition);
+            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+            Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
             if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 10f))
             {
                 if (EvaluateHitElement(mouseHit.collider.gameObject))
@@ -563,7 +733,23 @@ namespace Kannko.Laptop
             {
                 m_LastClickTime = Time.unscaledTime;
                 Debug.Log("[JakkoFreeWifiBrowserController] Hit detected on BackButton.");
-                CloseBrowser();
+                OnBackButtonClicked();
+                return true;
+            }
+
+            if (IsHitOnTarget(hitObj, m_ContinueScenarioButton?.gameObject))
+            {
+                m_LastClickTime = Time.unscaledTime;
+                Debug.Log("[JakkoFreeWifiBrowserController] Hit detected on ContinueScenarioButton.");
+                OnContinueScenarioClicked();
+                return true;
+            }
+
+            if (IsHitOnTarget(hitObj, m_GetOutOfCafeButton?.gameObject))
+            {
+                m_LastClickTime = Time.unscaledTime;
+                Debug.Log("[JakkoFreeWifiBrowserController] Hit detected on GetOutOfCafeButton.");
+                OnGetOutOfCafeClicked();
                 return true;
             }
 
@@ -591,6 +777,11 @@ namespace Kannko.Laptop
                 return true;
             }
 
+            if (m_CaptivePortalController != null && m_CaptivePortalController.DispatchHit(hitObj))
+            {
+                return true;
+            }
+
             return false;
         }
 
@@ -602,24 +793,19 @@ namespace Kannko.Laptop
 
         private void HandleKeyboardShortcuts()
         {
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-            {
-                CloseBrowser();
-                return;
-            }
-
-            if (Input.GetKeyDown(KeyCode.Escape))
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && kb.escapeKey.wasPressedThisFrame)
             {
                 CloseBrowser();
                 return;
             }
 
             // Quick shortcuts for desktop testing
-            if (Input.GetKeyDown(KeyCode.G))
+            if (kb != null && kb.gKey.wasPressedThisFrame)
             {
                 OnGoogleLoginClicked();
             }
-            else if (Input.GetKeyDown(KeyCode.F))
+            else if (kb != null && kb.fKey.wasPressedThisFrame)
             {
                 OnFacebookLoginClicked();
             }

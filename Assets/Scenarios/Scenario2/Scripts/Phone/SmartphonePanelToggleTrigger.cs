@@ -253,7 +253,9 @@ namespace Kannko.Phone
         /// </summary>
         private void HandleDesktopMouseClicks()
         {
-            if (!m_EnableMouseClick || !Input.GetMouseButtonDown(0)) return;
+            if (!m_EnableMouseClick) return;
+            if (UnityEngine.InputSystem.Mouse.current == null ||
+                !UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) return;
 
             Camera cam = Camera.main;
             if (cam == null) return;
@@ -271,7 +273,8 @@ namespace Kannko.Phone
             }
 
             // 2. Free cursor mouse raycast
-            Ray mouseRay = cam.ScreenPointToRay(Input.mousePosition);
+            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+            Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
             if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 5.0f))
             {
                 if (IsHitOnPhone(mouseHit.collider))
@@ -290,7 +293,12 @@ namespace Kannko.Phone
         {
             if (!m_EnableKeyboardShortcut) return;
 
-            if (Input.GetKeyDown(m_ShortcutKey) || Input.GetKeyDown(m_AlternativeShortcutKey))
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb == null) return;
+
+            // Map KeyCode to Input System Key
+            bool shortcutPressed = IsKeyCodePressed(kb, m_ShortcutKey) || IsKeyCodePressed(kb, m_AlternativeShortcutKey);
+            if (shortcutPressed)
             {
                 // Verify camera is looking in the general direction of phone or player is within range (5m)
                 Camera cam = Camera.main;
@@ -304,6 +312,21 @@ namespace Kannko.Phone
                     }
                 }
             }
+        }
+
+        private static bool IsKeyCodePressed(UnityEngine.InputSystem.Keyboard kb, KeyCode keyCode)
+        {
+            return keyCode switch
+            {
+                KeyCode.P => kb.pKey.wasPressedThisFrame,
+                KeyCode.Q => kb.qKey.wasPressedThisFrame,
+                KeyCode.E => kb.eKey.wasPressedThisFrame,
+                KeyCode.F => kb.fKey.wasPressedThisFrame,
+                KeyCode.T => kb.tKey.wasPressedThisFrame,
+                KeyCode.M => kb.mKey.wasPressedThisFrame,
+                KeyCode.N => kb.nKey.wasPressedThisFrame,
+                _ => false,
+            };
         }
 
         private bool IsHitOnPhone(Collider col)

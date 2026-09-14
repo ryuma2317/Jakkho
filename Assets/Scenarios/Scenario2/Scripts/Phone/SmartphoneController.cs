@@ -270,7 +270,9 @@ namespace Kannko.Phone
         /// </summary>
         private void HandleDirectClickInteraction()
         {
-            if (Input.GetMouseButtonDown(0))
+            bool mousePressed = UnityEngine.InputSystem.Mouse.current != null &&
+                                UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame;
+            if (mousePressed)
             {
                 Camera cam = Camera.main;
                 if (cam == null) return;
@@ -295,7 +297,8 @@ namespace Kannko.Phone
                 }
 
                 // Method B: Mouse cursor position raycast (free cursor mode)
-                Ray mouseRay = cam.ScreenPointToRay(Input.mousePosition);
+                Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+                Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
                 if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 5.0f))
                 {
                     if (IsHitOnPhoneOrPopup(mouseHit.collider))

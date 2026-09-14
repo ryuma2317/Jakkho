@@ -75,10 +75,18 @@ namespace Kannko.Laptop
                 {
                     m_IntroController = Object.FindFirstObjectByType<Scenario2IntroController>(FindObjectsInactive.Include);
                 }
-                if (m_IntroController != null)
+                if (m_IntroController != null && !m_IntroController.IsScenarioStarted)
                 {
-                    return m_IntroController.IsScenarioStarted;
+                    return false;
                 }
+
+                // Block opening the laptop if the external Reveal presentation is active in World Space
+                var portal = Object.FindFirstObjectByType<CaptivePortalController>(FindObjectsInactive.Include);
+                if (portal != null && portal.IsRevealPresentationActive)
+                {
+                    return false;
+                }
+
                 return true;
             }
         }
@@ -321,7 +329,9 @@ namespace Kannko.Laptop
         /// </summary>
         private void HandleDesktopMouseClicks()
         {
-            if (!m_EnableMouseClick || !Input.GetMouseButtonDown(0)) return;
+            if (!m_EnableMouseClick) return;
+            if (UnityEngine.InputSystem.Mouse.current == null ||
+                !UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) return;
             if (!CanInteract) return;
 
             Camera cam = Camera.main;
@@ -340,7 +350,8 @@ namespace Kannko.Laptop
             }
 
             // 2. Free cursor mouse raycast
-            Ray mouseRay = cam.ScreenPointToRay(Input.mousePosition);
+            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+            Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
             if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 5.0f))
             {
                 if (IsHitOnLaptop(mouseHit.collider))
@@ -369,7 +380,11 @@ namespace Kannko.Laptop
 
             if (!m_EnableKeyboardShortcut) return;
 
-            if (Input.GetKeyDown(m_ShortcutKey) || Input.GetKeyDown(m_AlternativeShortcutKey))
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb == null) return;
+
+            bool shortcutPressed = IsKeyCodePressed(kb, m_ShortcutKey) || IsKeyCodePressed(kb, m_AlternativeShortcutKey);
+            if (shortcutPressed)
             {
                 if (!CanInteract) return;
 
@@ -384,6 +399,19 @@ namespace Kannko.Laptop
                     }
                 }
             }
+        }
+
+        private static bool IsKeyCodePressed(UnityEngine.InputSystem.Keyboard kb, KeyCode keyCode)
+        {
+            return keyCode switch
+            {
+                KeyCode.L => kb.lKey.wasPressedThisFrame,
+                KeyCode.E => kb.eKey.wasPressedThisFrame,
+                KeyCode.F => kb.fKey.wasPressedThisFrame,
+                KeyCode.T => kb.tKey.wasPressedThisFrame,
+                KeyCode.P => kb.pKey.wasPressedThisFrame,
+                _ => false,
+            };
         }
 
         private bool IsHitOnLaptop(Collider col)

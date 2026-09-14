@@ -37,6 +37,10 @@ namespace Kannko.Scenario
         [Tooltip("Button to return to the Main Menu.")]
         [SerializeField] private Button m_BackToMenuButton;
 
+        [Header("Interactive Objects Gating")]
+        [Tooltip("Root container holding interactive gameplay objects (Laptop, CoffeeCup, Smartphone, LaptopBag) that must remain hidden until START is clicked.")]
+        [SerializeField] private GameObject m_InteractiveObjects;
+
         [Header("Gameplay Transition / Popup")]
         [Tooltip("The floating Telegram message popup associated with the smartphone.")]
         [SerializeField] private GameObject m_TelegramMessagePopup;
@@ -81,6 +85,17 @@ namespace Kannko.Scenario
             if (m_StartButton == null)
             {
                 m_StartButton = GetComponentInChildren<Button>(true);
+            }
+
+            if (m_InteractiveObjects == null)
+            {
+                FindInteractiveObjects();
+            }
+
+            // Interactive gameplay objects must remain hidden/disabled until START is clicked
+            if (m_InteractiveObjects != null && !m_IsScenarioStarted)
+            {
+                m_InteractiveObjects.SetActive(false);
             }
 
             if (m_TelegramMessagePopup == null)
@@ -263,6 +278,20 @@ namespace Kannko.Scenario
                 }
             }
 
+            // Ensure interactive gameplay objects remain hidden until START is clicked
+            if (!m_IsScenarioStarted)
+            {
+                if (m_InteractiveObjects == null)
+                {
+                    FindInteractiveObjects();
+                }
+
+                if (m_InteractiveObjects != null)
+                {
+                    m_InteractiveObjects.SetActive(false);
+                }
+            }
+
             // At the beginning, the TelegramMessagePopup object must not be visible/active (Toggle Active state false)
             if (!m_IsScenarioStarted)
             {
@@ -292,7 +321,9 @@ namespace Kannko.Scenario
 
             // Method A & B Fallback (Direct Mouse Click / Reticle Raycast Click):
             // When user clicks Left Mouse Button while looking at panel/button, trigger START immediately!
-            if (Input.GetMouseButtonDown(0))
+            bool mousePressed = UnityEngine.InputSystem.Mouse.current != null &&
+                                UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame;
+            if (mousePressed)
             {
                 Camera cam = Camera.main != null ? Camera.main : (m_Canvas != null ? m_Canvas.worldCamera : null);
                 if (cam != null)
@@ -310,7 +341,8 @@ namespace Kannko.Scenario
                     }
 
                     // Also check mouse position if cursor is not locked
-                    Ray mouseRay = cam.ScreenPointToRay(Input.mousePosition);
+                    Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+                    Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
                     if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 10f))
                     {
                         if (mouseHit.collider.GetComponentInParent<Scenario2IntroController>() == this ||
@@ -325,7 +357,8 @@ namespace Kannko.Scenario
             }
 
             // Method C Shortcut (Keyboard Enter / Space Key):
-            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Space))
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame))
             {
                 Debug.Log("[Scenario2IntroController] START triggered via Keyboard shortcut (Enter/Space key).");
                 OnStartButtonClicked();
@@ -403,6 +436,18 @@ namespace Kannko.Scenario
             {
                 m_CanvasGroup.interactable = false;
                 m_CanvasGroup.blocksRaycasts = false;
+            }
+
+            // Enable existing interactive objects (Laptop, CoffeeCup, Smartphone, LaptopBag)
+            if (m_InteractiveObjects == null)
+            {
+                FindInteractiveObjects();
+            }
+
+            if (m_InteractiveObjects != null)
+            {
+                m_InteractiveObjects.SetActive(true);
+                Debug.Log("[Scenario2IntroController] InteractiveObjects enabled on START.");
             }
 
             // Activate Telegram Message Popup (Toggle Active state set to true) and start blinking
@@ -489,6 +534,33 @@ namespace Kannko.Scenario
                 if (t != null && t.gameObject.name == "TelegramMessagePopup" && t.gameObject.scene.isLoaded)
                 {
                     m_TelegramMessagePopup = t.gameObject;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Locates the existing InteractiveObjects root GameObject in the scene hierarchy.
+        /// Works even when the container starts in an inactive state.
+        /// </summary>
+        public void FindInteractiveObjects()
+        {
+            if (m_InteractiveObjects != null) return;
+
+            GameObject go = GameObject.Find("InteractiveObjects");
+            if (go != null)
+            {
+                m_InteractiveObjects = go;
+                return;
+            }
+
+            var allTransforms = Resources.FindObjectsOfTypeAll<Transform>();
+            for (int i = 0; i < allTransforms.Length; i++)
+            {
+                var t = allTransforms[i];
+                if (t != null && t.gameObject.name == "InteractiveObjects" && t.gameObject.scene.isLoaded)
+                {
+                    m_InteractiveObjects = t.gameObject;
                     return;
                 }
             }

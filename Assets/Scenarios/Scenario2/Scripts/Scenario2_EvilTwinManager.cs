@@ -14,6 +14,7 @@ namespace Kannko.Scenario2
     public class Scenario2_EvilTwinManager : MonoBehaviour
     {
         [Header("Scenario Configuration")]
+        [SerializeField] private ScenarioDataSO m_ScenarioData;
         [SerializeField] private Scenario2Config m_Config;
 
         [Header("UI & Intro Panel References")]
@@ -105,6 +106,8 @@ namespace Kannko.Scenario2
             OnScenarioTimeExpired?.Invoke();
         }
 
+        public ScenarioDataSO ScenarioData => m_ScenarioData;
+
         public void DiscoverRedFlag(RedFlagData redFlag)
         {
             if (redFlag != null)
@@ -113,5 +116,18 @@ namespace Kannko.Scenario2
                 Debug.Log($"[Scenario2_EvilTwinManager] Red flag discovered: '{redFlag.title}' ({redFlag.flagId}). Total: {m_RedFlagsDiscovered}");
             }
         }
+
+        public void DiscoverRedFlag(RedFlagSO redFlag)
+        {
+            if (redFlag != null)
+            {
+                m_RedFlagsDiscovered++;
+                Debug.Log($"[Scenario2_EvilTwinManager] Red flag discovered: '{redFlag.flagName}' ({redFlag.flagId}). Total: {m_RedFlagsDiscovered}");
+            }
+        }
     }
 }
+
+// Global class for compatibility with ScenarioUIOverlay (Type.GetType("Scenario2_EvilTwinManager"))
+public class Scenario2_EvilTwinManager : Kannko.Scenario2.Scenario2_EvilTwinManager {}
+

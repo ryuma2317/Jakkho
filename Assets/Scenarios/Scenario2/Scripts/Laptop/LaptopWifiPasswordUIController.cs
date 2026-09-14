@@ -580,13 +580,15 @@ namespace Kannko.Laptop
 
         private void HandleDesktopMouseClicks()
         {
-            if (!Input.GetMouseButtonDown(0)) return;
+            if (UnityEngine.InputSystem.Mouse.current == null ||
+                !UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) return;
 
             Camera cam = Camera.main;
             if (cam == null) return;
 
             // 1. Mouse cursor raycast
-            Ray mouseRay = cam.ScreenPointToRay(Input.mousePosition);
+            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
+            Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
             if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 10f))
             {
                 if (EvaluateHitElement(mouseHit.collider.gameObject))
@@ -682,17 +684,10 @@ namespace Kannko.Laptop
 
         private void HandleKeyboardShortcuts()
         {
-            // Escape key cancels password screen if visible
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-            {
-                if (IsPasswordUIVisible)
-                {
-                    OnCancelClicked();
-                    return;
-                }
-            }
+            var kb = UnityEngine.InputSystem.Keyboard.current;
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            // Escape key cancels password screen if visible
+            if (kb != null && kb.escapeKey.wasPressedThisFrame)
             {
                 if (IsPasswordUIVisible)
                 {
@@ -704,22 +699,22 @@ namespace Kannko.Laptop
             // Quick shortcuts for desktop testing
             if (IsNetworkListVisible)
             {
-                if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
+                if (kb != null && (kb.digit1Key.wasPressedThisFrame || kb.numpad1Key.wasPressedThisFrame))
                 {
                     SelectNetwork("Jakkho-Cooffee");
                 }
-                else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
+                else if (kb != null && (kb.digit2Key.wasPressedThisFrame || kb.numpad2Key.wasPressedThisFrame))
                 {
                     SelectNetwork("Jakkho-Cooffee_free");
                 }
-                else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+                else if (kb != null && (kb.digit3Key.wasPressedThisFrame || kb.numpad3Key.wasPressedThisFrame))
                 {
                     SelectNetwork("Slanh Wifi Ke Mes");
                 }
             }
             else if (IsPasswordUIVisible)
             {
-                if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+                if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))
                 {
                     OnConnectClicked();
                 }
