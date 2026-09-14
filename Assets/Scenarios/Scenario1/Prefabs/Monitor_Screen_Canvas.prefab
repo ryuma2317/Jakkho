@@ -2931,7 +2931,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_text: "<b><size=30>Sovann (Coworker)</size></b>  <size=20><color=#38BDF8>\u2022
-    online</color></size>  <size=15><color=#64748B>19:45</color></size>\n\n<size=25><color=#CBD5E1>\"Hey,
+    online</color></size>  <size=15><color=#64748B>11:00</color></size>\n\n<size=25><color=#CBD5E1>\"Hey,
     HR just sent the updated salary slip for August. Check your email too.\"</color></size>\n\n  "
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
