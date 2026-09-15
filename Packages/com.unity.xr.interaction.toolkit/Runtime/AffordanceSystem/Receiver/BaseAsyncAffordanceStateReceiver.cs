@@ -41,10 +41,14 @@ namespace UnityEngine.XR.Interaction.Toolkit.AffordanceSystem.Receiver
         {
             CaptureInitialValue();
 
+            var theme = affordanceTheme;
+            if (theme == null)
+                return default;
+
             var stateData = currentAffordanceStateData.Value;
 
             // Grab affordance theme data matching the target state index.
-            var themeData = affordanceTheme.GetAffordanceThemeDataForIndex(stateData.stateIndex);
+            var themeData = theme.GetAffordanceThemeDataForIndex(stateData.stateIndex);
             if (themeData == null)
             {
                 // If we cannot process the desired state index, return

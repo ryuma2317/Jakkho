@@ -629,10 +629,20 @@ namespace UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals
         protected void OnEnable()
         {
             if (m_LineRenderer == null)
+                TryFindLineRenderer();
+
+            if (m_LineRenderer == null)
             {
                 XRLoggingUtils.LogError($"Missing Line Renderer component on {this}. Disabling line visual.", this);
                 enabled = false;
                 return;
+            }
+
+            if (m_LineRenderable == null)
+            {
+                m_LineRenderable = GetComponent<ILineRenderable>();
+                m_AdvancedLineRenderable = m_LineRenderable as IAdvancedLineRenderable;
+                m_HasAdvancedLineRenderable = m_AdvancedLineRenderable != null;
             }
 
             if (m_LineRenderable == null)

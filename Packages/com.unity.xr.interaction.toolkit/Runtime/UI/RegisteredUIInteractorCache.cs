@@ -149,7 +149,7 @@ namespace UnityEngine.XR.Interaction.Toolkit.UI
             if (args.inputModuleDestroyed && ReferenceEquals(m_InputModule, args.inputModule))
                 m_InputModule = null;
 
-            if (m_InputModule == null && m_EnableUIInteraction && (!m_IsBaseInteractor || m_BaseInteractor.isActiveAndEnabled))
+            if (m_InputModule == null && m_EnableUIInteraction && (!m_IsBaseInteractor || (m_BaseInteractor != null && m_BaseInteractor.isActiveAndEnabled)))
                 XRUIInputModule.RegisterWithWaitlist(m_UiInteractor);
         }
 

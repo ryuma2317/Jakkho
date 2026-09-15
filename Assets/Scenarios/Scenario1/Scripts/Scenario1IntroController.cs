@@ -701,10 +701,11 @@ namespace CADT.VR.Scenarios.Scenario1
 
         public void OnMenuButtonClicked()
         {
-            Debug.Log($"[Scenario 1] Returning to Main Menu: '{m_MainMenuSceneName}'");
+            Debug.Log($"[Scenario 1] Returning to Scenario Selection Menu: '{m_MainMenuSceneName}'");
+            VRSetup.VRCardNavigationManager.navigateToScenarioSelectionDirectly = true;
             if (GameManager.Instance != null)
             {
-                GameManager.Instance.LoadMainMenu();
+                GameManager.Instance.LoadScenarioSelection();
             }
             else if (Application.CanStreamedLevelBeLoaded(m_MainMenuSceneName))
             {

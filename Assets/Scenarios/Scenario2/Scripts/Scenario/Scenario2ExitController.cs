@@ -27,6 +27,9 @@ namespace Kannko.Scenario2
         [Tooltip("Reference to the EnlargedWifiPanel to ensure it is visible when returning to laptop.")]
         [SerializeField] private GameObject m_EnlargedWifiPanel;
 
+        [Tooltip("Reference to the Scenario 2 Lessons Learned Debrief panel.")]
+        [SerializeField] private GameObject m_LessonLearnedPanel;
+
         [Header("Buttons")]
         [SerializeField] private Button m_BackToScenarioButton;
         [SerializeField] private Button m_ExitScenarioButton;
@@ -106,6 +109,16 @@ namespace Kannko.Scenario2
                 var btn = m_ExitConfirmationPanel.transform.Find("ActionButtons/BackToScenarioButton");
                 if (btn == null) btn = m_ExitConfirmationPanel.transform.Find("BackToScenarioButton");
                 if (btn != null) m_BackToScenarioButton = btn.GetComponent<Button>();
+            }
+
+            if (m_LessonLearnedPanel == null)
+            {
+                var wui = GameObject.Find("WorldUI");
+                if (wui != null)
+                {
+                    var t = wui.transform.Find("Scenario2_Lesson_Learned_Panel");
+                    if (t != null) m_LessonLearnedPanel = t.gameObject;
+                }
             }
 
             if (m_ExitScenarioButton == null && m_ExitConfirmationPanel != null)
@@ -209,7 +222,24 @@ namespace Kannko.Scenario2
             if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
             m_LastClickTime = Time.unscaledTime;
 
-            Debug.Log("[Scenario2ExitController] Player confirmed exit. Loading scenario selection / main menu...");
+            FindReferencesIfNull();
+
+            // If the Lesson Learned panel is present and not yet shown, present the Incident Debrief
+            if (m_LessonLearnedPanel != null && !m_LessonLearnedPanel.activeSelf)
+            {
+                Debug.Log("[Scenario2ExitController] Player confirmed exit. Presenting Incident Debrief & Lessons Learned!");
+                HideExitConfirmation();
+                if (m_FloatingLaptopPanel != null) m_FloatingLaptopPanel.SetActive(false);
+                m_LessonLearnedPanel.SetActive(true);
+                return;
+            }
+
+            DirectExitToMenu();
+        }
+
+        public void DirectExitToMenu()
+        {
+            Debug.Log("[Scenario2ExitController] Loading scenario selection / main menu...");
 
             if (GameManager.Instance != null)
             {

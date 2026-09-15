@@ -105,9 +105,13 @@ public class ScenarioManager : MonoBehaviour
         {
             GameManager.Instance.LoadScenarioSelection();
         }
-        else
+        else if (UnityEngine.Application.CanStreamedLevelBeLoaded("ScenarioSelection"))
         {
             UnityEngine.SceneManagement.SceneManager.LoadScene("ScenarioSelection");
+        }
+        else
+        {
+            UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
         }
     }
 

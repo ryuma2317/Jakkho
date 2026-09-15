@@ -295,14 +295,16 @@ namespace Kannko.Scenario2.Editor
             controller.HookButtons();
             controller.ShowLesson(0);
 
-            // Start hidden during Play mode so it only appears upon winning
-            so.FindProperty("hideOnStart").boolValue = true;
-            so.ApplyModifiedProperties();
+            // Keep panel active in Edit Mode so the user can inspect and preview it in Scene View
+            root.SetActive(true);
+            Selection.activeGameObject = root;
 
             EditorUtility.SetDirty(root);
+            if (worldUI != null) EditorUtility.SetDirty(worldUI);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(root.scene);
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(root.scene);
 
-            Debug.Log("<color=#34D399><b>[Scenario2LessonLearnedBuilder]</b> Successfully created Scenario 2 Lesson Learned Panel!</color>");
+            Debug.Log("<color=#34D399><b>[Scenario2LessonLearnedBuilder]</b> Successfully created and saved Scenario 2 Lesson Learned Panel!</color>");
         }
 
         private static GameObject CreateCard(Transform parent, string name, string headerText, string bodyText, TMP_FontAsset font, Color outlineColor, string bodyName)

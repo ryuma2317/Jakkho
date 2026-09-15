@@ -9,7 +9,7 @@ using TMPro;
 public class ScenarioUIOverlay : MonoBehaviour
 {
     [Header("Scene Names")]
-    public string scenarioSelectionScene = "ScenarioSelection";
+    public string scenarioSelectionScene = "MainMenu";
     public string mainMenuScene = "MainMenu";
 
     [Header("Style")]
@@ -24,6 +24,8 @@ public class ScenarioUIOverlay : MonoBehaviour
     public Color exitButtonColor = new Color(0.28f, 0.12f, 0.14f, 0.85f);
 
     [Header("Behaviour")]
+    [Tooltip("Whether to build and display the floating ScenarioEndPanel (disabled when rich Lessons Learned panel is used)")]
+    public bool enableEndPanel = false;
     public float endPanelDelay = 1.0f;
 
     private GameObject confirmPanel;
@@ -42,9 +44,12 @@ public class ScenarioUIOverlay : MonoBehaviour
         var canvasGO = BuildCanvas();
         BuildExitButton(canvasGO.transform);
         confirmPanel = BuildConfirmPanel(canvasGO.transform);
-        endPanel = BuildEndPanel(canvasGO.transform);
+        if (enableEndPanel)
+        {
+            endPanel = BuildEndPanel(canvasGO.transform);
+            endPanel.SetActive(false);
+        }
         confirmPanel.SetActive(false);
-        endPanel.SetActive(false);
     }
 
     private void Start()
@@ -85,24 +90,39 @@ public class ScenarioUIOverlay : MonoBehaviour
 
     private IEnumerator ShowEndPanelDelayed()
     {
+        if (!enableEndPanel || endPanel == null) yield break;
         if (endPanelDelay > 0f) yield return new WaitForSeconds(endPanelDelay);
         if (endPanel != null) endPanel.SetActive(true);
     }
 
     public void ShowConfirmPanel() { if (confirmPanel != null) confirmPanel.SetActive(true); }
     public void HideConfirmPanel() { if (confirmPanel != null) confirmPanel.SetActive(false); }
-    public void ShowEndPanel() { if (endPanel != null) endPanel.SetActive(true); }
+    public void ShowEndPanel() { if (enableEndPanel && endPanel != null) endPanel.SetActive(true); }
 
     public void ExitToScenarioSelection()
     {
-        if (GameManager.Instance != null) GameManager.Instance.LoadScenarioSelection();
-        else SceneManager.LoadScene(scenarioSelectionScene);
+        VRSetup.VRCardNavigationManager.navigateToScenarioSelectionDirectly = true;
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.LoadScenarioSelection();
+        }
+        else
+        {
+            SceneManager.LoadScene(mainMenuScene);
+        }
     }
 
     public void GoToMainMenu()
     {
-        if (GameManager.Instance != null) GameManager.Instance.LoadMainMenu();
-        else SceneManager.LoadScene(mainMenuScene);
+        VRSetup.VRCardNavigationManager.navigateToScenarioSelectionDirectly = true;
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.LoadScenarioSelection();
+        }
+        else
+        {
+            SceneManager.LoadScene(mainMenuScene);
+        }
     }
 
     public void ReplayScenario()
@@ -158,7 +178,7 @@ public class ScenarioUIOverlay : MonoBehaviour
         var back = CreateButton("BackToScenarioButton", panel.transform, "<b>BACK TO SCENARIO</b>", neutralColor, 30f, new Vector2(0.07f, 0.12f), new Vector2(0.48f, 0.4f));
         back.onClick.AddListener(HideConfirmPanel);
 
-        var exit = CreateButton("ExitScenarioButton", panel.transform, "<b>EXIT SCENARIO</b>", dangerColor, 30f, new Vector2(0.52f, 0.12f), new Vector2(0.93f, 0.4f));
+        var exit = CreateButton("ExitScenarioButton", panel.transform, "<b>MENU</b>", dangerColor, 30f, new Vector2(0.52f, 0.12f), new Vector2(0.93f, 0.4f));
         exit.onClick.AddListener(ExitToScenarioSelection);
 
         return panel;

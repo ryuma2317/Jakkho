@@ -33,10 +33,28 @@ namespace VRSetup
             AutoAssignReferencesIfMissing();
         }
 
+        public static bool navigateToScenarioSelectionDirectly = false;
+
         private void Start()
         {
             SetupButtonListeners();
-            ShowJakkroCard();
+
+            bool openScenarioDirectly = navigateToScenarioSelectionDirectly;
+            if (GameManager.Instance != null && GameManager.Instance.openScenarioSelectionDirectly)
+            {
+                openScenarioDirectly = true;
+                GameManager.Instance.openScenarioSelectionDirectly = false;
+            }
+
+            if (openScenarioDirectly)
+            {
+                navigateToScenarioSelectionDirectly = false;
+                ShowScenarioCard();
+            }
+            else
+            {
+                ShowJakkroCard();
+            }
         }
 
         public void AutoAssignReferencesIfMissing()

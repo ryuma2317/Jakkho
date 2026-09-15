@@ -37,8 +37,19 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    public void LoadMainMenu() { SceneManager.LoadScene("MainMenu"); }
-    public void LoadScenarioSelection() { SceneManager.LoadScene("ScenarioSelection"); }
+    public bool openScenarioSelectionDirectly = false;
+
+    public void LoadMainMenu()
+    {
+        openScenarioSelectionDirectly = true;
+        SceneManager.LoadScene("MainMenu");
+    }
+
+    public void LoadScenarioSelection()
+    {
+        openScenarioSelectionDirectly = true;
+        SceneManager.LoadScene("MainMenu");
+    }
     public void CompleteScenario(int xpEarned = 0) { Debug.Log($"[GameManager] Scenario completed with {xpEarned} XP"); }
     public void QuitGame() { Application.Quit(); }
 }

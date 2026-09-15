@@ -136,10 +136,10 @@ namespace CADT.VR.Scenarios.Scenario1.Editor
 
             string[] tabLabels = new string[]
             {
-                "1. YOUR LOSSES",
-                "2. SECURITY ALERT",
+                "1. ASSETS PROTECTED",
+                "2. THREAT CONTAINED",
                 "3. OUT-OF-BAND",
-                "4. SCENARIO COMPLETE"
+                "4. VICTORY (100 XP)"
             };
 
             Button[] tabButtons = new Button[4];
@@ -147,7 +147,7 @@ namespace CADT.VR.Scenarios.Scenario1.Editor
             float tabGap = 16f;
             float startX = -((4 * tabWidth + 3 * tabGap) / 2f) + (tabWidth / 2f);
 
-            Color tab0ActiveColor = new Color(0.85f, 0.15f, 0.15f, 0.95f);
+            Color tab0ActiveColor = new Color(0.12f, 0.75f, 0.45f, 0.95f);
             Color tabInactiveColor = new Color(0.10f, 0.14f, 0.20f, 0.85f);
 
             for (int i = 0; i < 4; i++)
@@ -179,49 +179,53 @@ namespace CADT.VR.Scenarios.Scenario1.Editor
             GameObject[] lessonCards = new GameObject[4];
 
             // -----------------------------
-            // CARD 0: YOUR LOSSES
+            // CARD 0: ASSETS PROTECTED
             // -----------------------------
             GameObject card0 = CreateCard("Card_0_Losses", cardsContainer.transform,
-                new Color(0.08f, 0.03f, 0.04f, 0.98f), new Color(0.95f, 0.20f, 0.20f, 0.95f));
+                new Color(0.02f, 0.08f, 0.05f, 0.98f), new Color(0.12f, 0.85f, 0.50f, 0.95f));
             SetAnchors(card0.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
 
-            CreateCardHeader(card0.transform, "<b>YOUR LOSSES:</b>", 36, new Color(1.0f, 0.25f, 0.25f), boldFont, new Color(0.85f, 0.20f, 0.20f, 0.5f));
+            CreateCardHeader(card0.transform, "<b>✓ ASSETS PROTECTED — THREAT CONTAINED:</b>", 34, new Color(0.25f, 0.95f, 0.60f), boldFont, new Color(0.12f, 0.85f, 0.50f, 0.6f));
 
             string lossesContent =
                 "<line-height=145%>" +
-                "<color=#EF4444><b>✗</b></color>  <b>Bank login credentials (ABA Bank)</b>\n" +
-                "<color=#EF4444><b>✗</b></color>  <b>Work email password</b>\n" +
-                "<color=#EF4444><b>✗</b></color>  <b>Telegram account session</b>\n" +
-                "<color=#EF4444><b>✗</b></color>  <b>PayPal account access</b>\n" +
-                "<color=#EF4444><b>✗</b></color>  <b>Webcam photo of you</b>\n" +
-                "<color=#EF4444><b>✗</b></color>  <b>847 personal contacts exposed</b>\n" +
-                "<color=#EF4444><b>✗</b></color>  <b>234 corporate contacts exposed</b>\n" +
-                "<color=#EF4444><b>✗</b></color>  <b>Your identity used to spam 10+ people</b>\n" +
-                "<color=#EF4444><b>✗</b></color>  <b>Potential financial theft</b>\n" +
-                "<color=#EF4444><b>✗</b></color>  <b>Potential identity theft</b>" +
+                "<color=#10B981><b>✓</b></color>  <b>Bank login credentials (ABA Bank)</b> — <color=#34D399><b>SECURED</b></color>\n" +
+                "<color=#10B981><b>✓</b></color>  <b>Work email password</b> — <color=#34D399><b>PROTECTED</b></color>\n" +
+                "<color=#10B981><b>✓</b></color>  <b>Telegram account session</b> — <color=#34D399><b>INTACT</b></color>\n" +
+                "<color=#10B981><b>✓</b></color>  <b>PayPal account access</b> — <color=#34D399><b>SAFEGUARDED</b></color>\n" +
+                "<color=#10B981><b>✓</b></color>  <b>Webcam privacy</b> — <color=#34D399><b>NO UNAUTHORIZED ACCESS</b></color>\n" +
+                "<color=#10B981><b>✓</b></color>  <b>847 personal contacts</b> — <color=#34D399><b>PRESERVED</b></color>\n" +
+                "<color=#10B981><b>✓</b></color>  <b>234 corporate contacts</b> — <color=#34D399><b>NOT EXPOSED</b></color>\n" +
+                "<color=#10B981><b>✓</b></color>  <b>Identity abuse</b> — <color=#34D399><b>BLOCKED IN TIME</b></color>\n" +
+                "<color=#10B981><b>✓</b></color>  <b>Financial theft</b> — <color=#34D399><b>PREVENTED</b></color>\n" +
+                "<color=#10B981><b>✓</b></color>  <b>Malware C2 exfiltration</b> — <color=#34D399><b>BEACON SEVERED</b></color>" +
                 "</line-height>";
 
             CreateCardBody(card0.transform, "Losses_Body", lossesContent, 26, boldFont);
             lessonCards[0] = card0;
 
             // -----------------------------
-            // CARD 1: SECURITY ALERT
+            // CARD 1: THREAT CONTAINED
             // -----------------------------
             GameObject card1 = CreateCard("Card_1_Alert", cardsContainer.transform,
-                new Color(0.10f, 0.03f, 0.03f, 0.98f), new Color(0.95f, 0.35f, 0.15f, 0.95f));
+                new Color(0.02f, 0.05f, 0.10f, 0.98f), new Color(0.20f, 0.70f, 0.98f, 0.95f));
             SetAnchors(card1.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
 
-            CreateCardHeader(card1.transform, "<b>[!] SECURITY ALERT</b>", 36, new Color(1.0f, 0.35f, 0.25f), boldFont, new Color(0.95f, 0.35f, 0.15f, 0.5f));
+            CreateCardHeader(card1.transform, "<b>✓ EMERGENCY INCIDENT CONTAINED</b>", 36, new Color(0.25f, 0.80f, 1.0f), boldFont, new Color(0.20f, 0.70f, 0.98f, 0.6f));
 
             string alertContent =
-                "<line-height=180%><size=30>" +
-                "<color=#EF4444>●</color>  <b>Workstation Network Isolated</b>\n\n" +
-                "<color=#F59E0B>●</color>  <b>Active InfoStealer Detected</b>\n\n" +
-                "<color=#EF4444>●</color>  <b>All files and credentials may be compromised</b>\n\n" +
-                "<color=#38BDF8>●</color>  <b>Contact IT Security immediately</b>" +
+                "<line-height=170%><size=27>" +
+                "<color=#10B981>●</color>  <b>Emergency Shutdown Executed in Time!</b>\n" +
+                "<color=#94A3B8>You halted the workstation before the 10-second breach window completed.</color>\n\n" +
+                "<color=#38BDF8>●</color>  <b>Network Connection Cut Off:</b>\n" +
+                "<color=#94A3B8>The InfoStealer failed to transmit stolen credentials to the attacker.</color>\n\n" +
+                "<color=#10B981>●</color>  <b>Dropper Subprocesses Terminated:</b>\n" +
+                "<color=#94A3B8>Malicious batch payload killed in volatile memory before persistence.</color>\n\n" +
+                "<color=#FBBF24>●</color>  <b>IT Incident Ticket Generated:</b>\n" +
+                "<color=#94A3B8>Incident #INC-8924 logged for workstation forensic wipe.</color>" +
                 "</size></line-height>";
 
-            CreateCardBody(card1.transform, "Alert_Body", alertContent, 30, boldFont);
+            CreateCardBody(card1.transform, "Alert_Body", alertContent, 27, boldFont);
             lessonCards[1] = card1;
 
             // -----------------------------
@@ -247,19 +251,20 @@ namespace CADT.VR.Scenarios.Scenario1.Editor
             lessonCards[2] = card2;
 
             // -----------------------------
-            // CARD 3: SCENARIO 1 COMPLETE
+            // CARD 3: VICTORY SCORECARD
             // -----------------------------
             GameObject card3 = CreateCard("Card_3_Summary", cardsContainer.transform,
-                new Color(0.03f, 0.08f, 0.06f, 0.98f), new Color(0.15f, 0.85f, 0.50f, 0.95f));
+                new Color(0.02f, 0.08f, 0.05f, 0.98f), new Color(0.15f, 0.85f, 0.50f, 0.95f));
             SetAnchors(card3.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
 
-            CreateCardHeader(card3.transform, "<b>SCENARIO 1 COMPLETE</b>", 36, new Color(0.25f, 0.95f, 0.60f), boldFont, new Color(0.15f, 0.85f, 0.50f, 0.5f));
+            CreateCardHeader(card3.transform, "<b>★ SCENARIO 1 COMPLETE — VICTORY! ★</b>", 36, new Color(0.25f, 0.95f, 0.60f), boldFont, new Color(0.15f, 0.85f, 0.50f, 0.6f));
 
             string summaryContent =
                 "<line-height=150%><size=27>" +
-                "<b>Red Flags Detected:</b>  <color=#F87171><b>0 / 3</b></color>\n" +
-                "<b>Choice Made:</b>  <color=#EF4444><b>Unsafe (Executed Payload)</b></color>\n" +
-                "<b>XP Earned:</b>  <color=#F87171><b>0 / 100 XP</b></color>\n\n" +
+                "<b>Red Flags Addressed:</b>  <color=#34D399><b>3 / 3 (Full Awareness)</b></color>\n" +
+                "<b>Choice Made:</b>  <color=#34D399><b>Safe (Emergency Power Cutoff in Time)</b></color>\n" +
+                "<b>XP Earned:</b>  <color=#FBBF24><b>100 / 100 XP (PERFECT SCORE!)</b></color>\n\n" +
+                "<color=#38BDF8><b>SECURITY BADGE UNLOCKED:</b></color>  <color=#FBBF24><b>★ Rapid Incident Responder ★</b></color>\n\n" +
                 "<color=#FBBF24><b>KEY RULES TO REMEMBER:</b></color>\n" +
                 "<b>1. Documents are never executables</b>\n" +
                 "<b>2. Password-protected archives = suspicious</b>\n" +
@@ -356,9 +361,6 @@ namespace CADT.VR.Scenarios.Scenario1.Editor
             // 8. WIRE CONTROLLER
             // -------------------------------------------------------------
             SerializedObject so = new SerializedObject(controller);
-            so.FindProperty("headerTitleTMP").objectReferenceValue = null;
-            so.FindProperty("headerSubtitleTMP").objectReferenceValue = null;
-            so.FindProperty("statusBadgeTMP").objectReferenceValue = null;
 
             SerializedProperty cardsProp = so.FindProperty("lessonCards");
             cardsProp.arraySize = 4;
@@ -387,19 +389,25 @@ namespace CADT.VR.Scenarios.Scenario1.Editor
             so.FindProperty("hideOnStart").boolValue = true;
             so.FindProperty("animatePopOnEnable").boolValue = true;
             so.FindProperty("popDuration").floatValue = 0.45f;
+            var victoryProp = so.FindProperty("isVictoryMode");
+            if (victoryProp != null) victoryProp.boolValue = true;
 
             so.ApplyModifiedProperties();
 
-            // Hook controller listeners
+            // Hook controller listeners and configure victory state
             controller.HookButtons();
+            controller.ConfigureOutcome(true);
 
             // -------------------------------------------------------------
             // 9. WIRE COMMAND PROMPT BREACH SIMULATOR
             // -------------------------------------------------------------
             SerializedObject simSo = new SerializedObject(breachSim);
-            simSo.FindProperty("breachDuration").floatValue = 10.0f;
-            simSo.FindProperty("autoCloseAfterDuration").boolValue = true;
-            simSo.FindProperty("lessonLearnedPanel").objectReferenceValue = panelRoot;
+            var breachDurationProp = simSo.FindProperty("breachDuration");
+            if (breachDurationProp != null) breachDurationProp.floatValue = 10.0f;
+            var autoCloseProp = simSo.FindProperty("autoCloseAfterDuration");
+            if (autoCloseProp != null) autoCloseProp.boolValue = true;
+            var panelProp = simSo.FindProperty("lessonLearnedPanel");
+            if (panelProp != null) panelProp.objectReferenceValue = panelRoot;
             simSo.ApplyModifiedProperties();
 
             // Keep panel active in Edit Mode so the user can see and inspect it immediately in the Editor.

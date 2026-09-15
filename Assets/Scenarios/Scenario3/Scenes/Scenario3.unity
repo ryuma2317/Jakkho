@@ -18120,7 +18120,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0fb6293dfcf43e4a96557c83c9e9475, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScenarioUIOverlay
-  scenarioSelectionScene: ScenarioSelection
+  scenarioSelectionScene: MainMenu
   mainMenuScene: MainMenu
   font: {fileID: 11400000, guid: 728338e6439b90d40958843429867905, type: 2}
   panelColor: {r: 0.06, g: 0.08, b: 0.13, a: 0.97}

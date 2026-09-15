@@ -30,6 +30,16 @@ namespace CADT.VR.Cybersecurity
         [Tooltip("Color of the terminal text (Color 0C: light red)")]
         [SerializeField] private Color terminalTextColor = new Color(0.83f, 0.26f, 0.31f, 1.0f); // #D3424F
 
+        [Header("--- Lessons Learned Panel ---")]
+        [Tooltip("Duration of the breach simulation before automatic timeout/debrief (seconds)")]
+        [SerializeField] private float breachDuration = 10.0f;
+
+        [Tooltip("Whether to automatically complete the breach sequence after breachDuration")]
+        [SerializeField] private bool autoCloseAfterDuration = true;
+
+        [Tooltip("Reference to the Lessons Learned Debrief panel to display post-breach")]
+        [SerializeField] private GameObject lessonLearnedPanel;
+
         [Header("--- UI References ---")]
         [SerializeField] private TextMeshProUGUI terminalTMP;
         [SerializeField] private ScrollRect scrollRect;
@@ -100,6 +110,7 @@ namespace CADT.VR.Cybersecurity
         private float originalDirIntensity;
         private float originalLampIntensity;
         private bool hasSavedLightState = false;
+        private bool isManualEmergencyShutdown = true;
 #pragma warning disable CS0414
         private bool isRunning = false;
 #pragma warning restore CS0414
@@ -116,6 +127,24 @@ namespace CADT.VR.Cybersecurity
         {
             get => loopSequence;
             set => loopSequence = value;
+        }
+
+        public float BreachDuration
+        {
+            get => breachDuration;
+            set => breachDuration = value;
+        }
+
+        public bool AutoCloseAfterDuration
+        {
+            get => autoCloseAfterDuration;
+            set => autoCloseAfterDuration = value;
+        }
+
+        public GameObject LessonLearnedPanel
+        {
+            get => lessonLearnedPanel;
+            set => lessonLearnedPanel = value;
         }
 
         public TextMeshProUGUI TerminalTMP
@@ -421,10 +450,19 @@ namespace CADT.VR.Cybersecurity
             }
         }
 
-        [ContextMenu("Execute Shutdown")]
+        [ContextMenu("Execute Shutdown (Manual / Victory)")]
         public void ExecuteShutdown()
         {
-            Debug.Log("<color=#22C55E><b>[CADT VR]</b> Emergency Shutdown initiated! Halting malware breach sequence...</color>");
+            ExecuteShutdown(true);
+        }
+
+        public void ExecuteShutdown(bool isManual)
+        {
+            isManualEmergencyShutdown = isManual;
+
+            Debug.Log(isManual
+                ? "<color=#22C55E><b>[CADT VR]</b> Emergency Shutdown initiated by player! Halting malware breach sequence...</color>"
+                : "<color=#EF4444><b>[CADT VR]</b> Breach duration elapsed without shutdown! Workstation compromised...</color>");
 
             if (audioSource != null)
             {
@@ -443,10 +481,10 @@ namespace CADT.VR.Cybersecurity
             onShutdownClicked?.Invoke();
 
             if (shutdownRoutine != null) StopCoroutine(shutdownRoutine);
-            shutdownRoutine = StartCoroutine(ShutdownSequenceRoutine());
+            shutdownRoutine = StartCoroutine(ShutdownSequenceRoutine(isManual));
         }
 
-        private IEnumerator ShutdownSequenceRoutine()
+        private IEnumerator ShutdownSequenceRoutine(bool isManual)
         {
             EnsureShutdownOverlay();
             if (shutdownOverlay != null)
@@ -460,7 +498,9 @@ namespace CADT.VR.Cybersecurity
 
             if (shutdownStatusTMP != null)
             {
-                shutdownStatusTMP.text = "<size=44><b>Shutting down...</b></size>\n\n<size=20><color=#94A3B8>Terminating unauthorized network connections...\nStopping malicious subprocesses...</color></size>";
+                shutdownStatusTMP.text = isManual
+                    ? "<size=44><b>Shutting down...</b></size>\n\n<size=20><color=#94A3B8>Terminating unauthorized network connections...\nStopping malicious subprocesses...</color></size>"
+                    : "<size=44><color=#EF4444><b>Breach Complete!</b></color></size>\n\n<size=20><color=#94A3B8>Malware payload fully deployed...\nLocking workstation down...</color></size>";
             }
 
             yield return new WaitForSeconds(2.0f);
@@ -473,12 +513,47 @@ namespace CADT.VR.Cybersecurity
 
             if (shutdownStatusTMP != null)
             {
-                shutdownStatusTMP.text = "<size=36><color=#22C55E><b>\u25CF WORKSTATION POWERED OFF</b></color></size>\n\n<size=19><color=#94A3B8>Malware execution halted. Command Prompt terminated.\nNetwork interface disabled \u2014 C2 beacon isolated.</color></size>";
+                shutdownStatusTMP.text = isManual
+                    ? "<size=36><color=#22C55E><b>\u25CF WORKSTATION POWERED OFF</b></color></size>\n\n<size=19><color=#94A3B8>Malware execution halted. Command Prompt terminated.\nNetwork interface disabled \u2014 C2 beacon isolated.</color></size>"
+                    : "<size=36><color=#EF4444><b>\u25CF WORKSTATION COMPROMISED</b></color></size>\n\n<size=19><color=#94A3B8>Breach sequence completed. InfoStealer exfiltration successful.\nCredentials and private data exposed to attacker.</color></size>";
             }
 
             if (powerOnButton != null)
             {
                 powerOnButton.gameObject.SetActive(true);
+            }
+
+            if (lessonLearnedPanel == null)
+            {
+                GameObject foundPanel = GameObject.Find("Lesson_Learned_Panel");
+                if (foundPanel != null) lessonLearnedPanel = foundPanel;
+            }
+
+            if (lessonLearnedPanel != null)
+            {
+                var ctrl = lessonLearnedPanel.GetComponent<Scenario1_LessonLearnedController>();
+                if (ctrl != null)
+                {
+                    ctrl.ConfigureOutcome(isManual);
+                }
+
+                lessonLearnedPanel.SetActive(true);
+
+                if (ctrl != null)
+                {
+                    ctrl.ConfigureOutcome(isManual);
+                    ctrl.ShowLesson(0);
+                }
+            }
+
+            if (ScoreTracker.Instance != null)
+            {
+                ScoreTracker.Instance.RecordOutcome(isManual ? ScenarioManager.OutcomeType.Success : ScenarioManager.OutcomeType.Failure);
+            }
+
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.CompleteScenario(isManual ? 100 : 0);
             }
 
             onWorkstationPoweredOff?.Invoke();
@@ -497,6 +572,11 @@ namespace CADT.VR.Cybersecurity
             if (shutdownOverlay != null)
             {
                 shutdownOverlay.SetActive(false);
+            }
+
+            if (lessonLearnedPanel != null)
+            {
+                lessonLearnedPanel.SetActive(false);
             }
 
             gameObject.SetActive(false);
@@ -791,6 +871,7 @@ namespace CADT.VR.Cybersecurity
         {
             isRunning = true;
             onSequenceStarted?.Invoke();
+            float totalBreachTime = 0f;
 
             do
             {
@@ -820,6 +901,14 @@ namespace CADT.VR.Cybersecurity
                     }
 
                     yield return new WaitForSeconds(lineDelay);
+                    totalBreachTime += lineDelay;
+
+                    if (autoCloseAfterDuration && totalBreachTime >= breachDuration)
+                    {
+                        Debug.Log("<color=#F59E0B><b>[CADT VR]</b> Auto-closing breach sequence after breach duration (" + breachDuration + "s)...</color>");
+                        ExecuteShutdown(false);
+                        yield break;
+                    }
                 }
 
                 // Brief pause with cursor before loop

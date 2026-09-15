@@ -16,12 +16,6 @@ namespace CADT.VR.Cybersecurity
     [DisallowMultipleComponent]
     public class Scenario1_LessonLearnedController : MonoBehaviour
     {
-        [Header("--- Header & Status Elements ---")]
-        [SerializeField] private TextMeshProUGUI headerTitleTMP;
-        [SerializeField] private TextMeshProUGUI headerSubtitleTMP;
-        [SerializeField] private TextMeshProUGUI statusBadgeTMP;
-        [SerializeField] private TextMeshProUGUI xpScoreTMP;
-
         [Header("--- Lesson Card Containers ---")]
         [Tooltip("The 4 lesson cards to switch between")]
         [SerializeField] private GameObject[] lessonCards;
@@ -105,6 +99,7 @@ namespace CADT.VR.Cybersecurity
         private void OnEnable()
         {
             CacheBaseTransform();
+            ConfigureOutcome(isVictoryMode);
             ShowLesson(0);
 
             if (audioSource != null && panelOpenedSFX != null && Application.isPlaying)
@@ -265,7 +260,7 @@ namespace CADT.VR.Cybersecurity
 
         private static readonly Color TabInactiveColor = new Color(0.10f, 0.14f, 0.20f, 0.85f);
 
-        private bool isVictoryMode = false;
+        [SerializeField] private bool isVictoryMode = true;
         public bool IsVictoryMode => isVictoryMode;
 
         /// <summary>
@@ -549,6 +544,7 @@ namespace CADT.VR.Cybersecurity
             PlayClickSound();
             Debug.Log("<color=#38BDF8><b>[CADT VR]</b> Returning to Menu...</color>");
             onMenuTriggered?.Invoke();
+            VRSetup.VRCardNavigationManager.navigateToScenarioSelectionDirectly = true;
 
             if (GameManager.Instance != null)
             {
