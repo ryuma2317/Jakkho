@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
@@ -13,10 +14,12 @@ using Kannko.Phone;
 namespace Kannko.Scenario
 {
     /// <summary>
-    /// Manages the Scenario 2 Introduction UI overlay and gameplay transition.
-    /// Ensures smooth visual fading, zero raycast overhead, and immediate control restoration on START.
-    /// Shows the phone message popup when START is clicked and scenario gameplay begins.
-    /// Supports VR Raycast clicks, XR Device Simulator trigger clicks, direct Mouse clicks, and Laptop Keyboard (Enter/Space) shortcuts.
+    /// Controls the Scenario 2 introduction dialogue overlay and gameplay start transition.
+    /// Displays a game dialogue box at the bottom-left of the Main Camera view, matching
+    /// Scenario 1's dialogue design and camera-anchored positioning.
+    /// Cycles through the 3 narrative dialogue phrases with [NEXT >] buttons, then [START >].
+    /// On [START >], enables interactive objects, activates the phone notification popup, and starts scenario gameplay.
+    /// Supports VR Raycasts, XR Device Simulator, Mouse clicks, and Keyboard (Enter/Space) shortcuts.
     /// </summary>
     [DisallowMultipleComponent]
     public class Scenario2IntroController : MonoBehaviour
@@ -25,14 +28,23 @@ namespace Kannko.Scenario
         [Tooltip("The main container panel or root Canvas for the introduction UI.")]
         [SerializeField] private GameObject m_IntroPanel;
 
-        [Tooltip("Title TextMeshPro component.")]
+        [Tooltip("Header / Badge TextMeshPro component.")]
         [SerializeField] private TextMeshProUGUI m_TitleText;
 
-        [Tooltip("Story body TextMeshPro component.")]
+        [Tooltip("Step Counter TextMeshPro component (e.g., [1/3]).")]
+        [SerializeField] private TextMeshProUGUI m_StepCounterText;
+
+        [Tooltip("Dialogue body TextMeshPro component.")]
         [SerializeField] private TextMeshProUGUI m_StoryText;
 
-        [Tooltip("Button to start Scenario 2 gameplay.")]
-        [SerializeField] private Button m_StartButton;
+        [Tooltip("Action button that progresses through [NEXT >] and finally [START >].")]
+        [SerializeField] private Button m_ActionButton;
+
+        [Tooltip("Text label inside the action button.")]
+        [SerializeField] private TextMeshProUGUI m_ActionButtonText;
+
+        [Tooltip("Target graphic/image of the action button for color changes.")]
+        [SerializeField] private Image m_ActionButtonImage;
 
         [Tooltip("Button to return to the Main Menu.")]
         [SerializeField] private Button m_BackToMenuButton;
@@ -45,16 +57,40 @@ namespace Kannko.Scenario
         [Tooltip("The floating Telegram message popup associated with the smartphone.")]
         [SerializeField] private GameObject m_TelegramMessagePopup;
 
-        [Header("Content Settings")]
-        [SerializeField] private string m_StoryTitle = "SCENARIO 2";
+        [Header("Camera Attachment Settings")]
+        [Tooltip("Whether to anchor this canvas to Camera.main.")]
+        [SerializeField] private bool m_AttachToMainCamera = true;
+        [SerializeField] private float m_CameraDistance = 1.25f;
+        [SerializeField] private float m_CanvasScale = 0.0011f;
 
-        [TextArea(6, 12)]
-        [SerializeField] private string m_StoryBody = 
-            "You have just arrived at the cafe and begin\ntaking customer orders.\n\n" +
-            "Everything seems normal until you notice\na message from your boss.\n\n" +
-            "He needs an important financial report\nsent immediately because he has a meeting.\n\n" +
-            "The message was sent 17 minutes ago.\n\n" +
-            "You only have 3 minutes left.";
+        [Header("Dialogue Sequence Settings")]
+        [SerializeField] private string m_BadgeTitle = "◆ SCENARIO 2 BRIEFING";
+
+        [TextArea(3, 6)]
+        [SerializeField] private string[] m_DialogueLines = new string[]
+        {
+            "You have just arrived at the cafe and ordered the drink .\n\nEverything seems normal until you notice a message from your boss.",
+            "He needs an important financial report sent immediately because he has a meeting.",
+            "The message was sent 17 minutes ago.\n\nYou only have 3 minutes left."
+        };
+
+        [Header("Button Colors")]
+        [SerializeField] private Color m_NextButtonColor = new Color(0.01f, 0.52f, 0.78f, 1f);      // #0284C7 Tech Blue
+        [SerializeField] private Color m_StartButtonColor = new Color(0.06f, 0.72f, 0.50f, 1f);     // #10B981 Emerald Green
+
+        [Header("Typewriter Effect Settings")]
+        [Tooltip("Whether to display dialogue text with a typewriter effect.")]
+        [SerializeField] private bool m_EnableTypewriterEffect = true;
+
+        [Tooltip("Typing speed in seconds per character.")]
+        [Range(0.005f, 0.1f)]
+        [SerializeField] private float m_TypingSpeed = 0.025f;
+
+        [Tooltip("Optional typing sound effect played as characters are displayed.")]
+        [SerializeField] private AudioClip m_TypingSFX;
+
+        [Tooltip("Extra pause duration after punctuation (. ! ?) in seconds.")]
+        [SerializeField] private float m_PunctuationPause = 0.12f;
 
         [Header("Smooth Transition Settings")]
         [Tooltip("Duration in seconds for the smooth fade-out animation when START is pressed.")]
@@ -64,16 +100,42 @@ namespace Kannko.Scenario
         [Tooltip("Name of the Main Menu scene to load when Back To Menu is clicked.")]
         [SerializeField] private string m_MainMenuSceneName = "MainMenu";
 
+        [Header("Audio Feedback")]
+        [SerializeField] private AudioSource m_AudioSource;
+        [SerializeField] private AudioClip m_NextStepSFX;
+        [SerializeField] private AudioClip m_StartSFX;
+
         [Header("Events")]
+        [Tooltip("Event triggered when player advances to the next dialogue line.")]
+        public UnityEvent<int> OnDialogueStepChanged = new UnityEvent<int>();
+
         [Tooltip("Event triggered when the player clicks START and gameplay begins.")]
         public UnityEvent OnScenarioStarted = new UnityEvent();
 
+        [SerializeField] private int m_CurrentStepIndex = 0;
         private bool m_IsScenarioStarted = false;
+        private bool m_IsTyping = false;
+        private Coroutine m_TypewriterCoroutine;
         private CanvasGroup m_CanvasGroup;
         private Canvas m_Canvas;
-        private XRSimpleInteractable m_StartSimpleInteractable;
+        private XRSimpleInteractable m_ActionSimpleInteractable;
+        private XRSimpleInteractable m_MenuSimpleInteractable;
 
         public bool IsScenarioStarted => m_IsScenarioStarted;
+        public bool IsTyping => m_IsTyping;
+        public int CurrentStepIndex { get => m_CurrentStepIndex; set => m_CurrentStepIndex = value; }
+        public string[] DialogueLines { get => m_DialogueLines; set => m_DialogueLines = value; }
+        public float TypingSpeed { get => m_TypingSpeed; set => m_TypingSpeed = value; }
+        public bool EnableTypewriterEffect { get => m_EnableTypewriterEffect; set => m_EnableTypewriterEffect = value; }
+        public Button StartButton => m_ActionButton;
+
+        public void ResetToFirstStep()
+        {
+            m_CurrentStepIndex = 0;
+            m_IsScenarioStarted = false;
+            m_IsTyping = false;
+            UpdateDialogueDisplay();
+        }
 
         private void Awake()
         {
@@ -82,17 +144,19 @@ namespace Kannko.Scenario
                 m_IntroPanel = gameObject;
             }
 
-            if (m_StartButton == null)
+            if (m_AudioSource == null)
             {
-                m_StartButton = GetComponentInChildren<Button>(true);
+                m_AudioSource = GetComponent<AudioSource>();
             }
+
+            EnsureAttachedToMainCamera();
 
             if (m_InteractiveObjects == null)
             {
                 FindInteractiveObjects();
             }
 
-            // Interactive gameplay objects must remain hidden/disabled until START is clicked
+            // Interactive gameplay objects must remain hidden until START is clicked
             if (m_InteractiveObjects != null && !m_IsScenarioStarted)
             {
                 m_InteractiveObjects.SetActive(false);
@@ -103,15 +167,33 @@ namespace Kannko.Scenario
                 FindTelegramMessagePopup();
             }
 
-            // At the beginning, the TelegramMessagePopup object must not be visible/active.
+            // Telegram popup must not be visible until START is clicked
             if (m_TelegramMessagePopup != null && !m_IsScenarioStarted)
             {
                 m_TelegramMessagePopup.SetActive(false);
             }
 
-            ApplyTextContent();
             SetupCanvasGroup();
             SetupButton3DCollidersAndXRInteractables();
+            if (!Application.isPlaying)
+            {
+                UpdateDialogueDisplay();
+            }
+        }
+
+        public void EnsureAttachedToMainCamera()
+        {
+            if (!m_AttachToMainCamera) return;
+
+            Camera cam = Camera.main;
+            if (cam == null) cam = UnityEngine.Object.FindFirstObjectByType<Camera>();
+            if (cam != null && transform.parent != cam.transform)
+            {
+                transform.SetParent(cam.transform, false);
+                transform.localPosition = new Vector3(0f, 0f, m_CameraDistance);
+                transform.localRotation = Quaternion.identity;
+                transform.localScale = Vector3.one * m_CanvasScale;
+            }
         }
 
         private void SetupCanvasGroup()
@@ -173,64 +255,92 @@ namespace Kannko.Scenario
 
         private void SetupButton3DCollidersAndXRInteractables()
         {
-            if (m_StartButton != null)
+            if (m_ActionButton != null)
             {
-                // Attach BoxCollider to Start Button if missing so 3D raycasts hit it
-                BoxCollider btnCol = m_StartButton.GetComponent<BoxCollider>();
+                BoxCollider btnCol = m_ActionButton.GetComponent<BoxCollider>();
                 if (btnCol == null)
                 {
-                    btnCol = m_StartButton.gameObject.AddComponent<BoxCollider>();
-                    RectTransform rectTransform = m_StartButton.GetComponent<RectTransform>();
-                    if (rectTransform != null)
-                    {
-                        btnCol.size = new Vector3(rectTransform.rect.width, rectTransform.rect.height, 10f);
-                    }
-                    else
-                    {
-                        btnCol.size = new Vector3(200f, 60f, 10f);
-                    }
+                    btnCol = m_ActionButton.gameObject.AddComponent<BoxCollider>();
                 }
-
-                // Attach XRSimpleInteractable so XR Device Simulator / VR Controller Rays can trigger select/activate
-                m_StartSimpleInteractable = m_StartButton.GetComponent<XRSimpleInteractable>();
-                if (m_StartSimpleInteractable == null)
+                RectTransform rectTransform = m_ActionButton.GetComponent<RectTransform>();
+                if (rectTransform != null)
                 {
-                    m_StartSimpleInteractable = m_StartButton.gameObject.AddComponent<XRSimpleInteractable>();
+                    btnCol.size = new Vector3(rectTransform.rect.width, rectTransform.rect.height, 10f);
+                    btnCol.center = Vector3.zero;
+                }
+                else
+                {
+                    btnCol.size = new Vector3(260f, 52f, 10f);
+                    btnCol.center = Vector3.zero;
                 }
 
-                m_StartSimpleInteractable.selectEntered.AddListener(_ => OnStartButtonClicked());
-                m_StartSimpleInteractable.activated.AddListener(_ => OnStartButtonClicked());
+                m_ActionSimpleInteractable = m_ActionButton.GetComponent<XRSimpleInteractable>();
+                if (m_ActionSimpleInteractable == null)
+                {
+                    m_ActionSimpleInteractable = m_ActionButton.gameObject.AddComponent<XRSimpleInteractable>();
+                }
+
+                m_ActionSimpleInteractable.selectEntered.RemoveAllListeners();
+                m_ActionSimpleInteractable.selectEntered.AddListener(_ => OnActionButtonClicked());
+                m_ActionSimpleInteractable.activated.RemoveAllListeners();
+                m_ActionSimpleInteractable.activated.AddListener(_ => OnActionButtonClicked());
             }
 
-            // Also attach BoxCollider to Panel Root so mouse raycasts hit panel bounds
+            if (m_BackToMenuButton != null)
+            {
+                BoxCollider btnCol = m_BackToMenuButton.GetComponent<BoxCollider>();
+                if (btnCol == null)
+                {
+                    btnCol = m_BackToMenuButton.gameObject.AddComponent<BoxCollider>();
+                }
+                RectTransform rectTransform = m_BackToMenuButton.GetComponent<RectTransform>();
+                if (rectTransform != null)
+                {
+                    btnCol.size = new Vector3(rectTransform.rect.width, rectTransform.rect.height, 10f);
+                    btnCol.center = Vector3.zero;
+                }
+                else
+                {
+                    btnCol.size = new Vector3(210f, 52f, 10f);
+                    btnCol.center = Vector3.zero;
+                }
+
+                m_MenuSimpleInteractable = m_BackToMenuButton.GetComponent<XRSimpleInteractable>();
+                if (m_MenuSimpleInteractable == null)
+                {
+                    m_MenuSimpleInteractable = m_BackToMenuButton.gameObject.AddComponent<XRSimpleInteractable>();
+                }
+
+                m_MenuSimpleInteractable.selectEntered.RemoveAllListeners();
+                m_MenuSimpleInteractable.selectEntered.AddListener(_ => OnBackToMenuButtonClicked());
+                m_MenuSimpleInteractable.activated.RemoveAllListeners();
+                m_MenuSimpleInteractable.activated.AddListener(_ => OnBackToMenuButtonClicked());
+            }
+
+            // BoxCollider on panel root so mouse/XR raycasts hit panel bounds
             GameObject panelRoot = m_IntroPanel != null ? m_IntroPanel : gameObject;
             BoxCollider panelCol = panelRoot.GetComponent<BoxCollider>();
             if (panelCol == null)
             {
                 panelCol = panelRoot.AddComponent<BoxCollider>();
-                RectTransform rectTransform = panelRoot.GetComponent<RectTransform>();
-                if (rectTransform != null)
-                {
-                    panelCol.size = new Vector3(rectTransform.rect.width, rectTransform.rect.height, 5f);
-                }
-                else
-                {
-                    panelCol.size = new Vector3(600f, 400f, 5f);
-                }
+            }
+            RectTransform panelRt = panelRoot.GetComponent<RectTransform>();
+            if (panelRt != null)
+            {
+                panelCol.size = new Vector3(panelRt.rect.width, panelRt.rect.height, 5f);
+            }
+            else
+            {
+                panelCol.size = new Vector3(1000f, 640f, 5f);
             }
         }
 
         private void OnEnable()
         {
-            if (m_StartButton == null)
+            if (m_ActionButton != null)
             {
-                m_StartButton = GetComponentInChildren<Button>(true);
-            }
-
-            if (m_StartButton != null)
-            {
-                m_StartButton.onClick.RemoveListener(OnStartButtonClicked);
-                m_StartButton.onClick.AddListener(OnStartButtonClicked);
+                m_ActionButton.onClick.RemoveListener(OnActionButtonClicked);
+                m_ActionButton.onClick.AddListener(OnActionButtonClicked);
             }
 
             if (m_BackToMenuButton != null)
@@ -242,9 +352,16 @@ namespace Kannko.Scenario
 
         private void OnDisable()
         {
-            if (m_StartButton != null)
+            if (m_TypewriterCoroutine != null)
             {
-                m_StartButton.onClick.RemoveListener(OnStartButtonClicked);
+                StopCoroutine(m_TypewriterCoroutine);
+                m_TypewriterCoroutine = null;
+                m_IsTyping = false;
+            }
+
+            if (m_ActionButton != null)
+            {
+                m_ActionButton.onClick.RemoveListener(OnActionButtonClicked);
             }
 
             if (m_BackToMenuButton != null)
@@ -255,18 +372,21 @@ namespace Kannko.Scenario
 
         private void Start()
         {
-            if (m_StartButton == null)
+            EnsureAttachedToMainCamera();
+
+            if (m_ActionButton != null)
             {
-                m_StartButton = GetComponentInChildren<Button>(true);
+                m_ActionButton.onClick.RemoveListener(OnActionButtonClicked);
+                m_ActionButton.onClick.AddListener(OnActionButtonClicked);
             }
 
-            if (m_StartButton != null)
+            if (m_BackToMenuButton != null)
             {
-                m_StartButton.onClick.RemoveListener(OnStartButtonClicked);
-                m_StartButton.onClick.AddListener(OnStartButtonClicked);
+                m_BackToMenuButton.onClick.RemoveListener(OnBackToMenuButtonClicked);
+                m_BackToMenuButton.onClick.AddListener(OnBackToMenuButtonClicked);
             }
 
-            // Ensure intro panel is active and visible at start if scenario hasn't started yet
+            // Ensure intro panel is active and visible at start
             if (m_IntroPanel != null && !m_IsScenarioStarted)
             {
                 m_IntroPanel.SetActive(true);
@@ -278,7 +398,7 @@ namespace Kannko.Scenario
                 }
             }
 
-            // Ensure interactive gameplay objects remain hidden until START is clicked
+            // Ensure interactive gameplay objects remain hidden until START
             if (!m_IsScenarioStarted)
             {
                 if (m_InteractiveObjects == null)
@@ -292,7 +412,7 @@ namespace Kannko.Scenario
                 }
             }
 
-            // At the beginning, the TelegramMessagePopup object must not be visible/active (Toggle Active state false)
+            // Ensure Telegram popup remains inactive until START
             if (!m_IsScenarioStarted)
             {
                 if (m_TelegramMessagePopup == null)
@@ -306,12 +426,12 @@ namespace Kannko.Scenario
                 }
             }
 
-            // Ensure main camera is bound if needed for WorldSpace Raycaster
             if (m_Canvas != null && m_Canvas.renderMode == RenderMode.WorldSpace && m_Canvas.worldCamera == null)
             {
                 m_Canvas.worldCamera = Camera.main;
             }
 
+            UpdateDialogueDisplay();
             OptimizeRaycastTargets();
         }
 
@@ -319,8 +439,25 @@ namespace Kannko.Scenario
         {
             if (m_IsScenarioStarted || !Application.isPlaying) return;
 
-            // Method A & B Fallback (Direct Mouse Click / Reticle Raycast Click):
-            // When user clicks Left Mouse Button while looking at panel/button, trigger START immediately!
+            // Keyboard Shortcuts (Enter / Space to Advance/Start, Escape to Menu)
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb != null)
+            {
+                if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame)
+                {
+                    Debug.Log("[Scenario2IntroController] Action triggered via Keyboard shortcut (Enter/Space).");
+                    OnActionButtonClicked();
+                    return;
+                }
+                else if (kb.escapeKey.wasPressedThisFrame)
+                {
+                    Debug.Log("[Scenario2IntroController] MENU triggered via Keyboard shortcut (Escape).");
+                    OnBackToMenuButtonClicked();
+                    return;
+                }
+            }
+
+            // Direct Mouse Click / Reticle Raycast Click:
             bool mousePressed = UnityEngine.InputSystem.Mouse.current != null &&
                                 UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame;
             if (mousePressed)
@@ -328,46 +465,40 @@ namespace Kannko.Scenario
                 Camera cam = Camera.main != null ? Camera.main : (m_Canvas != null ? m_Canvas.worldCamera : null);
                 if (cam != null)
                 {
-                    Ray ray = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
-                    if (Physics.Raycast(ray, out RaycastHit hit, 10f))
-                    {
-                        if (hit.collider.GetComponentInParent<Scenario2IntroController>() == this ||
-                            hit.collider.gameObject == m_StartButton?.gameObject)
-                        {
-                            Debug.Log("[Scenario2IntroController] START button triggered via Desktop Mouse / Reticle Raycast!");
-                            OnStartButtonClicked();
-                            return;
-                        }
-                    }
-
-                    // Also check mouse position if cursor is not locked
                     Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
                     Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
                     if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 10f))
                     {
-                        if (mouseHit.collider.GetComponentInParent<Scenario2IntroController>() == this ||
-                            mouseHit.collider.gameObject == m_StartButton?.gameObject)
+                        if (m_ActionButton != null && (mouseHit.collider.gameObject == m_ActionButton.gameObject || mouseHit.collider.transform.IsChildOf(m_ActionButton.transform)))
                         {
-                            Debug.Log("[Scenario2IntroController] START button triggered via Direct Mouse Cursor Raycast!");
-                            OnStartButtonClicked();
+                            OnActionButtonClicked();
+                            return;
+                        }
+                        if (m_BackToMenuButton != null && (mouseHit.collider.gameObject == m_BackToMenuButton.gameObject || mouseHit.collider.transform.IsChildOf(m_BackToMenuButton.transform)))
+                        {
+                            OnBackToMenuButtonClicked();
+                            return;
+                        }
+                    }
+
+                    Ray centerRay = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
+                    if (Physics.Raycast(centerRay, out RaycastHit centerHit, 10f))
+                    {
+                        if (m_ActionButton != null && (centerHit.collider.gameObject == m_ActionButton.gameObject || centerHit.collider.transform.IsChildOf(m_ActionButton.transform)))
+                        {
+                            OnActionButtonClicked();
+                            return;
+                        }
+                        if (m_BackToMenuButton != null && (centerHit.collider.gameObject == m_BackToMenuButton.gameObject || centerHit.collider.transform.IsChildOf(m_BackToMenuButton.transform)))
+                        {
+                            OnBackToMenuButtonClicked();
                             return;
                         }
                     }
                 }
             }
-
-            // Method C Shortcut (Keyboard Enter / Space Key):
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame))
-            {
-                Debug.Log("[Scenario2IntroController] START triggered via Keyboard shortcut (Enter/Space key).");
-                OnStartButtonClicked();
-            }
         }
 
-        /// <summary>
-        /// Disables raycast targets on non-interactive decorative elements for optimal UI performance.
-        /// </summary>
         public void OptimizeRaycastTargets()
         {
             GameObject root = m_IntroPanel != null ? m_IntroPanel : gameObject;
@@ -387,17 +518,9 @@ namespace Kannko.Scenario
                 txt.raycastTarget = false;
             }
 
-            if (m_StartButton != null)
+            if (m_ActionButton != null && m_ActionButton.targetGraphic != null)
             {
-                if (m_StartButton.targetGraphic != null)
-                {
-                    m_StartButton.targetGraphic.raycastTarget = true;
-                }
-                var btnImages = m_StartButton.GetComponentsInChildren<Image>(true);
-                foreach (var bImg in btnImages)
-                {
-                    bImg.raycastTarget = true;
-                }
+                m_ActionButton.targetGraphic.raycastTarget = true;
             }
 
             if (m_BackToMenuButton != null && m_BackToMenuButton.targetGraphic != null)
@@ -406,29 +529,167 @@ namespace Kannko.Scenario
             }
         }
 
-        /// <summary>
-        /// Updates text components with Inspector-configured strings.
-        /// </summary>
-        public void ApplyTextContent()
+        public void UpdateDialogueDisplay()
         {
+            if (m_DialogueLines == null || m_DialogueLines.Length == 0) return;
+
+            m_CurrentStepIndex = Mathf.Clamp(m_CurrentStepIndex, 0, m_DialogueLines.Length - 1);
+
             if (m_TitleText != null)
             {
-                m_TitleText.text = m_StoryTitle;
+                m_TitleText.text = m_BadgeTitle;
+            }
+
+            if (m_StepCounterText != null)
+            {
+                m_StepCounterText.text = $"[{m_CurrentStepIndex + 1}/{m_DialogueLines.Length}]";
+            }
+
+            string currentLine = m_DialogueLines[m_CurrentStepIndex];
+            if (m_StoryText != null)
+            {
+                if (!Application.isPlaying || !m_EnableTypewriterEffect)
+                {
+                    m_StoryText.text = currentLine;
+                    m_StoryText.maxVisibleCharacters = 99999;
+                    m_IsTyping = false;
+                }
+                else
+                {
+                    StartTypingStoryText(currentLine);
+                }
+            }
+
+            bool isLastStep = (m_CurrentStepIndex == m_DialogueLines.Length - 1);
+
+            if (m_ActionButtonText != null)
+            {
+                m_ActionButtonText.text = isLastStep ? "<b>START ></b>" : "<b>NEXT ></b>";
+            }
+
+            if (m_ActionButtonImage != null)
+            {
+                m_ActionButtonImage.color = isLastStep ? m_StartButtonColor : m_NextButtonColor;
+            }
+
+            if (m_ActionButton != null)
+            {
+                ColorBlock cb = m_ActionButton.colors;
+                Color baseColor = isLastStep ? m_StartButtonColor : m_NextButtonColor;
+                cb.normalColor = baseColor;
+                cb.highlightedColor = baseColor * 1.15f;
+                cb.pressedColor = baseColor * 0.85f;
+                cb.selectedColor = baseColor;
+                m_ActionButton.colors = cb;
+            }
+        }
+
+        public void StartTypingStoryText(string targetText)
+        {
+            if (m_StoryText == null) return;
+
+            if (m_TypewriterCoroutine != null)
+            {
+                StopCoroutine(m_TypewriterCoroutine);
+                m_TypewriterCoroutine = null;
+            }
+
+            if (gameObject.activeInHierarchy)
+            {
+                m_TypewriterCoroutine = StartCoroutine(TypewriterRoutine(targetText));
+            }
+            else
+            {
+                m_StoryText.text = targetText;
+                m_StoryText.maxVisibleCharacters = 99999;
+                m_IsTyping = false;
+            }
+        }
+
+        private IEnumerator TypewriterRoutine(string targetText)
+        {
+            m_IsTyping = true;
+            m_StoryText.text = targetText;
+            m_StoryText.maxVisibleCharacters = 0;
+            m_StoryText.ForceMeshUpdate();
+
+            int totalCharacters = m_StoryText.textInfo.characterCount;
+            float charDelay = Mathf.Max(0.005f, m_TypingSpeed);
+
+            for (int i = 1; i <= totalCharacters; i++)
+            {
+                m_StoryText.maxVisibleCharacters = i;
+
+                if (m_TypingSFX != null && m_AudioSource != null && (i % 2 == 0))
+                {
+                    m_AudioSource.PlayOneShot(m_TypingSFX, 0.35f);
+                }
+
+                char c = (i - 1 < targetText.Length) ? targetText[i - 1] : ' ';
+                if (c == '.' || c == '!' || c == '?')
+                {
+                    yield return new WaitForSeconds(m_PunctuationPause);
+                }
+                else if (c == ',' || c == ';')
+                {
+                    yield return new WaitForSeconds(m_PunctuationPause * 0.5f);
+                }
+                else
+                {
+                    yield return new WaitForSeconds(charDelay);
+                }
+            }
+
+            m_StoryText.maxVisibleCharacters = 99999;
+            m_IsTyping = false;
+            m_TypewriterCoroutine = null;
+        }
+
+        public void CompleteCurrentTypingImmediately()
+        {
+            if (m_TypewriterCoroutine != null)
+            {
+                StopCoroutine(m_TypewriterCoroutine);
+                m_TypewriterCoroutine = null;
             }
 
             if (m_StoryText != null)
             {
-                m_StoryText.text = m_StoryBody;
+                m_StoryText.maxVisibleCharacters = 99999;
+            }
+
+            m_IsTyping = false;
+        }
+
+        public void OnActionButtonClicked()
+        {
+            if (m_IsScenarioStarted) return;
+
+            if (m_IsTyping)
+            {
+                CompleteCurrentTypingImmediately();
+                return;
+            }
+
+            if (m_CurrentStepIndex < m_DialogueLines.Length - 1)
+            {
+                m_CurrentStepIndex++;
+                PlaySFX(m_NextStepSFX);
+                UpdateDialogueDisplay();
+                OnDialogueStepChanged?.Invoke(m_CurrentStepIndex);
+                Debug.Log($"[Scenario2IntroController] Advanced to step {m_CurrentStepIndex + 1}/{m_DialogueLines.Length}");
+            }
+            else
+            {
+                PlaySFX(m_StartSFX);
+                OnStartButtonClicked();
             }
         }
 
-        /// <summary>
-        /// Called when the player clicks the START button or triggers any interaction method.
-        /// Immediately unblocks controls, displays the Phone Message Popup, smoothly fades out intro UI, and starts gameplay.
-        /// </summary>
         public void OnStartButtonClicked()
         {
             if (m_IsScenarioStarted) return;
+            CompleteCurrentTypingImmediately();
             m_IsScenarioStarted = true;
 
             // Immediately unblock player raycasts & interaction
@@ -456,7 +717,7 @@ namespace Kannko.Scenario
                 FindTelegramMessagePopup();
             }
 
-            var phoneController = Object.FindFirstObjectByType<SmartphoneController>();
+            var phoneController = UnityEngine.Object.FindFirstObjectByType<SmartphoneController>();
             if (phoneController != null && phoneController.IsMessageRead)
             {
                 Debug.Log("[Scenario2IntroController] Message is already marked READ. TelegramMessagePopup will remain hidden.");
@@ -478,7 +739,7 @@ namespace Kannko.Scenario
                 Debug.LogWarning("[Scenario2IntroController] TelegramMessagePopup not found to activate on START.");
             }
 
-            Debug.Log("[Scenario 2] START clicked! Intro UI fading out. Gameplay starting.");
+            Debug.Log("[Scenario 2] START clicked! Intro dialogue fading out. Gameplay starting.");
 
             // Trigger gameplay event
             OnScenarioStarted?.Invoke();
@@ -494,10 +755,6 @@ namespace Kannko.Scenario
             }
         }
 
-        /// <summary>
-        /// Locates the existing TelegramMessagePopup GameObject in the scene hierarchy.
-        /// Works even when the popup starts in an inactive state.
-        /// </summary>
         public void FindTelegramMessagePopup()
         {
             if (m_TelegramMessagePopup != null) return;
@@ -539,10 +796,6 @@ namespace Kannko.Scenario
             }
         }
 
-        /// <summary>
-        /// Locates the existing InteractiveObjects root GameObject in the scene hierarchy.
-        /// Works even when the container starts in an inactive state.
-        /// </summary>
         public void FindInteractiveObjects()
         {
             if (m_InteractiveObjects != null) return;
@@ -586,6 +839,7 @@ namespace Kannko.Scenario
 
         private void DeactivatePanel()
         {
+            CompleteCurrentTypingImmediately();
             if (m_IntroPanel != null)
             {
                 m_IntroPanel.SetActive(false);
@@ -596,29 +850,34 @@ namespace Kannko.Scenario
             }
         }
 
-        /// <summary>
-        /// Called when the player clicks the BACK TO MENU button.
-        /// </summary>
         public void OnBackToMenuButtonClicked()
         {
             Debug.Log($"[Scenario 2] Returning to Main Menu: '{m_MainMenuSceneName}'");
-            if (Application.CanStreamedLevelBeLoaded(m_MainMenuSceneName))
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.LoadMainMenu();
+            }
+            else if (Application.CanStreamedLevelBeLoaded(m_MainMenuSceneName))
             {
                 SceneManager.LoadScene(m_MainMenuSceneName);
             }
-            else
+            else if (SceneManager.sceneCountInBuildSettings > 0)
             {
-                Debug.LogWarning($"[Scenario 2] Main Menu scene '{m_MainMenuSceneName}' is not in Build Settings or does not exist. Loading scene index 0 as fallback if available.");
-                if (SceneManager.sceneCountInBuildSettings > 0)
-                {
-                    SceneManager.LoadScene(0);
-                }
+                SceneManager.LoadScene(0);
+            }
+        }
+
+        private void PlaySFX(AudioClip clip)
+        {
+            if (clip != null && m_AudioSource != null)
+            {
+                m_AudioSource.PlayOneShot(clip);
             }
         }
 
         private void OnValidate()
         {
-            ApplyTextContent();
+            UpdateDialogueDisplay();
         }
     }
 }

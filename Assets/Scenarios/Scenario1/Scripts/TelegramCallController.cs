@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using TMPro;
 using UnityEngine;
@@ -12,6 +12,8 @@ namespace CADT.VR.UI
     /// Handles user clicking the call button in the chat header,
     /// transitioning to the call screen, showing "Waiting...",
     /// waiting 2 seconds then switching to "Ringing...",
+    /// keeping "Ringing..." for 5 seconds (or until user clicks End Call),
+    /// automatically ending the call after 5 seconds if not ended manually,
     /// playing audio feedback, and ending the call back to the main Telegram window.
     /// </summary>
     [DisallowMultipleComponent]
@@ -38,6 +40,9 @@ namespace CADT.VR.UI
         [Tooltip("Duration to display 'Waiting...' before switching to 'Ringing...' (2 seconds requested)")]
         [SerializeField] private float waitingDuration = 2.0f;
 
+        [Tooltip("Duration to keep 'Ringing...' before automatically ending the call if user does not click End Call (5 seconds requested)")]
+        [SerializeField] private float ringingDuration = 5.0f;
+
         [Header("--- Audio Feedback ---")]
         [SerializeField] private AudioSource audioSource;
         [SerializeField] private AudioClip buttonClickSFX;
@@ -62,6 +67,18 @@ namespace CADT.VR.UI
 
         public bool IsCallActive => isCallActive;
         public int CompletedCallCount => completedCallCount;
+
+        public float WaitingDuration
+        {
+            get => waitingDuration;
+            set => waitingDuration = value;
+        }
+
+        public float RingingDuration
+        {
+            get => ringingDuration;
+            set => ringingDuration = value;
+        }
 
         public GameObject CanceledCallBubble1
         {
@@ -288,6 +305,16 @@ namespace CADT.VR.UI
                 audioSource.loop = true;
                 audioSource.Play();
             }
+
+            // Keep Ringing status for 5 seconds if user does not click End Call
+            yield return new WaitForSeconds(ringingDuration);
+
+            // Automatically end call after 5 seconds of ringing
+            if (isCallActive)
+            {
+                Debug.Log("<color=#F59E0B><b>[Telegram Call]</b> 5 seconds of ringing elapsed without user response. Automatically ending call.</color>");
+                EndCall();
+            }
         }
 
         [ContextMenu("End Call")]
@@ -295,7 +322,7 @@ namespace CADT.VR.UI
         {
             if (!isCallActive && (telegramCallScreen == null || !telegramCallScreen.activeSelf)) return;
 
-            Debug.Log("<color=#EF4444><b>[Telegram Call]</b> End Call clicked. Returning to Telegram_Window_Display.</color>");
+            Debug.Log("<color=#EF4444><b>[Telegram Call]</b> Call ended. Returning to Telegram_Window_Display.</color>");
 
             isCallActive = false;
 

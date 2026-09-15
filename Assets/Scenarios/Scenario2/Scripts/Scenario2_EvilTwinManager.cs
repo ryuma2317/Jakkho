@@ -38,7 +38,7 @@ namespace Kannko.Scenario2
             // Find existing components in the scene without instantiating duplicates
             if (m_IntroController == null)
             {
-                m_IntroController = FindFirstObjectByType<Scenario2IntroController>();
+                m_IntroController = FindFirstObjectByType<Scenario2IntroController>(FindObjectsInactive.Include);
             }
         }
 
@@ -74,8 +74,9 @@ namespace Kannko.Scenario2
             m_IsScenarioActive = true;
             m_TimeRemaining = m_Config != null ? m_Config.timeLimitSeconds : 180f;
 
-            // Deactivate intro panel
-            if (m_IntroController != null && m_IntroController.gameObject.activeSelf)
+            // Note: Scenario2IntroController manages its own smooth fade out and deactivation.
+            // Only deactivate directly if intro controller is not managing fade out.
+            if (m_IntroController != null && m_IntroController.gameObject.activeSelf && !m_IntroController.IsScenarioStarted)
             {
                 m_IntroController.gameObject.SetActive(false);
             }

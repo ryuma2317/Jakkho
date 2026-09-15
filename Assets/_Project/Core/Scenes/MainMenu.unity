@@ -508,6 +508,22 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5776210204937225324, guid: be0c86f67bf3f46659373b3776d9ecbb, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5776210204937225324, guid: be0c86f67bf3f46659373b3776d9ecbb, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5776210204937225324, guid: be0c86f67bf3f46659373b3776d9ecbb, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5776210204937225324, guid: be0c86f67bf3f46659373b3776d9ecbb, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 8640641445779114434, guid: be0c86f67bf3f46659373b3776d9ecbb, type: 3}
       propertyPath: m_Name
       value: XR Interaction Simulator UI
@@ -2582,7 +2598,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u2190 Go Back"
+  m_text: "<b>\u2715 CLOSE</b>"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 728338e6439b90d40958843429867905, type: 2}
   m_sharedMaterial: {fileID: -6672974591361863605, guid: 728338e6439b90d40958843429867905, type: 2}
@@ -2591,8 +2607,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4293650175
+  m_fontColor: {r: 1, g: 0.9, b: 0.92, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -4659,7 +4675,7 @@ BoxCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1210129074}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 1619321227}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0
@@ -10791,6 +10807,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1583250884}
   m_CullTransparentMesh: 1
+--- !u!134 &1619321227
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: 
+  serializedVersion: 2
+  m_DynamicFriction: 0.6
+  m_StaticFriction: 0.6
+  m_Bounciness: 0
+  m_FrictionCombine: 0
+  m_BounceCombine: 0
 --- !u!1 &1645522606
 GameObject:
   m_ObjectHideFlags: 0
@@ -10913,8 +10942,11 @@ MonoBehaviour:
   jakkroCard: {fileID: 1860515760}
   jakkroCardReflection: {fileID: 1690480123}
   scenarioCard: {fileID: 567061781}
+  logoObject: {fileID: 236911240}
   menuButton: {fileID: 2089873514}
-  backButton: {fileID: 2138891763}
+  quitButton: {fileID: 1210129078}
+  closeButton: {fileID: 2138891763}
+  backButton: {fileID: 0}
 --- !u!114 &1645522612
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10927,6 +10959,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7951c64acb0fa62458bf30a60089fe2d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.XR.Interaction.Toolkit::UnityEngine.XR.Interaction.Toolkit.UI.TrackedDeviceGraphicRaycaster
+  m_CurveRadiusWorld: 0
   m_IgnoreReversedGraphics: 0
   m_CheckFor2DOcclusion: 0
   m_CheckFor3DOcclusion: 0
@@ -12895,7 +12928,7 @@ GameObject:
   - component: {fileID: 2138891766}
   - component: {fileID: 2138891765}
   m_Layer: 0
-  m_Name: BackButton
+  m_Name: CloseButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -12927,7 +12960,7 @@ MonoBehaviour:
     m_PressedColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 1}
     m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
     m_DisabledColor: {r: 0.78431374, g: 0.78431374, b: 0.78431374, a: 0.5019608}
-    m_ColorMultiplier: 1.07
+    m_ColorMultiplier: 1
     m_FadeDuration: 0.1
   m_SpriteState:
     m_HighlightedSprite: {fileID: 0}
@@ -12947,7 +12980,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 1645522611}
         m_TargetAssemblyTypeName: VRSetup.VRCardNavigationManager, Assembly-CSharp
-        m_MethodName: ShowJakkroCard
+        m_MethodName: ExitPlayModeOrQuit
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -12970,7 +13003,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.122969, g: 0.2502153, b: 0.381132, a: 0.5019608}
+  m_Color: {r: 0.45, g: 0.12, b: 0.16, a: 0.75}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
