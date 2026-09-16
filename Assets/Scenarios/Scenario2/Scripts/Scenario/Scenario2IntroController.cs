@@ -57,11 +57,15 @@ namespace Kannko.Scenario
         [Tooltip("The floating Telegram message popup associated with the smartphone.")]
         [SerializeField] private GameObject m_TelegramMessagePopup;
 
-        [Header("Camera Attachment Settings")]
-        [Tooltip("Whether to anchor this canvas to Camera.main.")]
+        [Header("Camera Attachment & Manual Transform Settings")]
+        [Tooltip("Whether to anchor this canvas to Camera.main. If false, the panel remains in world space wherever you place it in the scene.")]
         [SerializeField] private bool m_AttachToMainCamera = true;
+        [Tooltip("If true, preserves your custom position, rotation, and scale set in the Unity Inspector/Scene instead of resetting to defaults.")]
+        [SerializeField] private bool m_PreserveLocalTransformOffsets = true;
         [SerializeField] private float m_CameraDistance = 1.25f;
         [SerializeField] private float m_CanvasScale = 0.0011f;
+        [Tooltip("Whether to automatically size BoxColliders to RectTransforms on Awake. Uncheck if you want to configure BoxCollider sizes manually.")]
+        [SerializeField] private bool m_AutoAdjustColliders = true;
 
         [Header("Dialogue Sequence Settings")]
         [SerializeField] private string m_BadgeTitle = "◆ SCENARIO 2 BRIEFING";
@@ -175,10 +179,6 @@ namespace Kannko.Scenario
 
             SetupCanvasGroup();
             SetupButton3DCollidersAndXRInteractables();
-            if (!Application.isPlaying)
-            {
-                UpdateDialogueDisplay();
-            }
         }
 
         public void EnsureAttachedToMainCamera()
@@ -189,10 +189,24 @@ namespace Kannko.Scenario
             if (cam == null) cam = UnityEngine.Object.FindFirstObjectByType<Camera>();
             if (cam != null && transform.parent != cam.transform)
             {
+                Vector3 currentLocalPos = transform.localPosition;
+                Quaternion currentLocalRot = transform.localRotation;
+                Vector3 currentLocalScale = transform.localScale;
+
                 transform.SetParent(cam.transform, false);
-                transform.localPosition = new Vector3(0f, 0f, m_CameraDistance);
-                transform.localRotation = Quaternion.identity;
-                transform.localScale = Vector3.one * m_CanvasScale;
+
+                if (!m_PreserveLocalTransformOffsets)
+                {
+                    transform.localPosition = new Vector3(0f, 0f, m_CameraDistance);
+                    transform.localRotation = Quaternion.identity;
+                    transform.localScale = Vector3.one * m_CanvasScale;
+                }
+                else
+                {
+                    transform.localPosition = currentLocalPos;
+                    transform.localRotation = currentLocalRot;
+                    transform.localScale = currentLocalScale;
+                }
             }
         }
 
@@ -262,16 +276,19 @@ namespace Kannko.Scenario
                 {
                     btnCol = m_ActionButton.gameObject.AddComponent<BoxCollider>();
                 }
-                RectTransform rectTransform = m_ActionButton.GetComponent<RectTransform>();
-                if (rectTransform != null)
+                if (m_AutoAdjustColliders)
                 {
-                    btnCol.size = new Vector3(rectTransform.rect.width, rectTransform.rect.height, 10f);
-                    btnCol.center = Vector3.zero;
-                }
-                else
-                {
-                    btnCol.size = new Vector3(260f, 52f, 10f);
-                    btnCol.center = Vector3.zero;
+                    RectTransform rectTransform = m_ActionButton.GetComponent<RectTransform>();
+                    if (rectTransform != null)
+                    {
+                        btnCol.size = new Vector3(rectTransform.rect.width, rectTransform.rect.height, 10f);
+                        btnCol.center = Vector3.zero;
+                    }
+                    else
+                    {
+                        btnCol.size = new Vector3(260f, 52f, 10f);
+                        btnCol.center = Vector3.zero;
+                    }
                 }
 
                 m_ActionSimpleInteractable = m_ActionButton.GetComponent<XRSimpleInteractable>();
@@ -293,16 +310,19 @@ namespace Kannko.Scenario
                 {
                     btnCol = m_BackToMenuButton.gameObject.AddComponent<BoxCollider>();
                 }
-                RectTransform rectTransform = m_BackToMenuButton.GetComponent<RectTransform>();
-                if (rectTransform != null)
+                if (m_AutoAdjustColliders)
                 {
-                    btnCol.size = new Vector3(rectTransform.rect.width, rectTransform.rect.height, 10f);
-                    btnCol.center = Vector3.zero;
-                }
-                else
-                {
-                    btnCol.size = new Vector3(210f, 52f, 10f);
-                    btnCol.center = Vector3.zero;
+                    RectTransform rectTransform = m_BackToMenuButton.GetComponent<RectTransform>();
+                    if (rectTransform != null)
+                    {
+                        btnCol.size = new Vector3(rectTransform.rect.width, rectTransform.rect.height, 10f);
+                        btnCol.center = Vector3.zero;
+                    }
+                    else
+                    {
+                        btnCol.size = new Vector3(210f, 52f, 10f);
+                        btnCol.center = Vector3.zero;
+                    }
                 }
 
                 m_MenuSimpleInteractable = m_BackToMenuButton.GetComponent<XRSimpleInteractable>();
@@ -324,14 +344,17 @@ namespace Kannko.Scenario
             {
                 panelCol = panelRoot.AddComponent<BoxCollider>();
             }
-            RectTransform panelRt = panelRoot.GetComponent<RectTransform>();
-            if (panelRt != null)
+            if (m_AutoAdjustColliders)
             {
-                panelCol.size = new Vector3(panelRt.rect.width, panelRt.rect.height, 5f);
-            }
-            else
-            {
-                panelCol.size = new Vector3(1000f, 640f, 5f);
+                RectTransform panelRt = panelRoot.GetComponent<RectTransform>();
+                if (panelRt != null)
+                {
+                    panelCol.size = new Vector3(panelRt.rect.width, panelRt.rect.height, 5f);
+                }
+                else
+                {
+                    panelCol.size = new Vector3(1000f, 640f, 5f);
+                }
             }
         }
 
@@ -433,70 +456,6 @@ namespace Kannko.Scenario
 
             UpdateDialogueDisplay();
             OptimizeRaycastTargets();
-        }
-
-        private void Update()
-        {
-            if (m_IsScenarioStarted || !Application.isPlaying) return;
-
-            // Keyboard Shortcuts (Enter / Space to Advance/Start, Escape to Menu)
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null)
-            {
-                if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame || kb.spaceKey.wasPressedThisFrame)
-                {
-                    Debug.Log("[Scenario2IntroController] Action triggered via Keyboard shortcut (Enter/Space).");
-                    OnActionButtonClicked();
-                    return;
-                }
-                else if (kb.escapeKey.wasPressedThisFrame)
-                {
-                    Debug.Log("[Scenario2IntroController] MENU triggered via Keyboard shortcut (Escape).");
-                    OnBackToMenuButtonClicked();
-                    return;
-                }
-            }
-
-            // Direct Mouse Click / Reticle Raycast Click:
-            bool mousePressed = UnityEngine.InputSystem.Mouse.current != null &&
-                                UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame;
-            if (mousePressed)
-            {
-                Camera cam = Camera.main != null ? Camera.main : (m_Canvas != null ? m_Canvas.worldCamera : null);
-                if (cam != null)
-                {
-                    Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
-                    Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
-                    if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 10f))
-                    {
-                        if (m_ActionButton != null && (mouseHit.collider.gameObject == m_ActionButton.gameObject || mouseHit.collider.transform.IsChildOf(m_ActionButton.transform)))
-                        {
-                            OnActionButtonClicked();
-                            return;
-                        }
-                        if (m_BackToMenuButton != null && (mouseHit.collider.gameObject == m_BackToMenuButton.gameObject || mouseHit.collider.transform.IsChildOf(m_BackToMenuButton.transform)))
-                        {
-                            OnBackToMenuButtonClicked();
-                            return;
-                        }
-                    }
-
-                    Ray centerRay = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
-                    if (Physics.Raycast(centerRay, out RaycastHit centerHit, 10f))
-                    {
-                        if (m_ActionButton != null && (centerHit.collider.gameObject == m_ActionButton.gameObject || centerHit.collider.transform.IsChildOf(m_ActionButton.transform)))
-                        {
-                            OnActionButtonClicked();
-                            return;
-                        }
-                        if (m_BackToMenuButton != null && (centerHit.collider.gameObject == m_BackToMenuButton.gameObject || centerHit.collider.transform.IsChildOf(m_BackToMenuButton.transform)))
-                        {
-                            OnBackToMenuButtonClicked();
-                            return;
-                        }
-                    }
-                }
-            }
         }
 
         public void OptimizeRaycastTargets()
@@ -712,17 +671,18 @@ namespace Kannko.Scenario
             }
 
             // Activate Telegram Message Popup (Toggle Active state set to true) and start blinking
+            var phoneController = UnityEngine.Object.FindFirstObjectByType<SmartphoneController>();
+            if (phoneController != null)
+            {
+                phoneController.ResetMessageReadState();
+            }
+
             if (m_TelegramMessagePopup == null)
             {
                 FindTelegramMessagePopup();
             }
 
-            var phoneController = UnityEngine.Object.FindFirstObjectByType<SmartphoneController>();
-            if (phoneController != null && phoneController.IsMessageRead)
-            {
-                Debug.Log("[Scenario2IntroController] Message is already marked READ. TelegramMessagePopup will remain hidden.");
-            }
-            else if (m_TelegramMessagePopup != null)
+            if (m_TelegramMessagePopup != null)
             {
                 m_TelegramMessagePopup.SetActive(true);
                 Debug.Log("[Scenario2IntroController] TelegramMessagePopup set to active/visible.");
@@ -759,7 +719,18 @@ namespace Kannko.Scenario
         {
             if (m_TelegramMessagePopup != null) return;
 
-            // 1. Look under Smartphone GameObject in scene
+            // 1. Look under InteractiveObjects root if assigned
+            if (m_InteractiveObjects != null)
+            {
+                Transform popupTrans = m_InteractiveObjects.transform.Find("Smartphone/TelegramMessagePopup");
+                if (popupTrans != null)
+                {
+                    m_TelegramMessagePopup = popupTrans.gameObject;
+                    return;
+                }
+            }
+
+            // 2. Look under Smartphone GameObject in scene
             GameObject smartphone = GameObject.Find("Smartphone");
             if (smartphone != null)
             {
@@ -771,7 +742,7 @@ namespace Kannko.Scenario
                 }
             }
 
-            // 2. Look under InteractiveObjects root
+            // 3. Look under InteractiveObjects root by name
             GameObject interactiveObjects = GameObject.Find("InteractiveObjects");
             if (interactiveObjects != null)
             {
@@ -783,7 +754,7 @@ namespace Kannko.Scenario
                 }
             }
 
-            // 3. Fallback: Search loaded scene transforms (including inactive GameObjects)
+            // 4. Fallback: Search loaded scene transforms (including inactive GameObjects)
             var allTransforms = Resources.FindObjectsOfTypeAll<Transform>();
             for (int i = 0; i < allTransforms.Length; i++)
             {
@@ -877,7 +848,26 @@ namespace Kannko.Scenario
 
         private void OnValidate()
         {
+            // Intentionally left empty so manual text and layout adjustments made in Unity Inspector/Scene view are not overwritten.
+        }
+
+        [ContextMenu("Apply Dialogue Lines To TextMeshPro")]
+        public void SyncDialogueLinesToTextMeshPro()
+        {
             UpdateDialogueDisplay();
+        }
+
+        [ContextMenu("Extract Current TextMeshPro To Dialogue Line")]
+        public void SyncTextMeshProToDialogueLine()
+        {
+            if (m_StoryText != null && m_DialogueLines != null && m_DialogueLines.Length > m_CurrentStepIndex)
+            {
+                m_DialogueLines[m_CurrentStepIndex] = m_StoryText.text;
+            }
+            if (m_TitleText != null)
+            {
+                m_BadgeTitle = m_TitleText.text;
+            }
         }
     }
 }

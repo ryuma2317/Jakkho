@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
@@ -42,12 +43,6 @@ namespace Kannko.Phone
         [Header("VR Controller Input Actions")]
         [SerializeField] private InputActionProperty m_LeftTriggerAction;
         [SerializeField] private InputActionProperty m_RightTriggerAction;
-
-        [Header("Laptop / Desktop Test Controls")]
-        [SerializeField] private bool m_EnableMouseClick = true;
-        [SerializeField] private bool m_EnableKeyboardShortcut = true;
-        [SerializeField] private KeyCode m_ShortcutKey = KeyCode.E;
-        [SerializeField] private KeyCode m_AlternativeShortcutKey = KeyCode.P;
 
         [Header("Events")]
         public UnityEvent OnPanelOpened = new UnityEvent();
@@ -92,8 +87,6 @@ namespace Kannko.Phone
             if (!Application.isPlaying) return;
 
             HandleVRControllerRayClicks();
-            HandleDesktopMouseClicks();
-            HandleKeyboardShortcuts();
         }
 
         /// <summary>
@@ -226,6 +219,7 @@ namespace Kannko.Phone
 
             if (!leftTrigger && !rightTrigger) return;
 
+            m_ActiveRayInteractors.RemoveAll(r => r == null);
             if (m_ActiveRayInteractors.Count == 0)
             {
                 ConfigureRayInteractors();
@@ -236,97 +230,28 @@ namespace Kannko.Phone
                 var ray = m_ActiveRayInteractors[i];
                 if (ray == null || !ray.gameObject.activeInHierarchy) continue;
 
+                // 1. Check 3D physics raycast hit on phone or colliders
                 if (ray.TryGetCurrent3DRaycastHit(out RaycastHit hit))
                 {
                     if (IsHitOnPhone(hit.collider))
                     {
-                        Debug.Log($"[SmartphonePanelToggleTrigger] VR Controller ray '{ray.name}' clicked smartphone. Toggling panel.");
+                        Debug.Log($"[SmartphonePanelToggleTrigger] VR Controller ray '{ray.name}' clicked smartphone (3D). Toggling panel.");
+                        TogglePanel();
+                        return;
+                    }
+                }
+
+                // 2. Check UI raycast hit (crucial when FloatingSmartphonePanel is open and intercepts ray)
+                if (ray.TryGetCurrentUIRaycastResult(out RaycastResult uiHit))
+                {
+                    if (IsHitOnPanelOrPhone(uiHit.gameObject))
+                    {
+                        Debug.Log($"[SmartphonePanelToggleTrigger] VR Controller ray '{ray.name}' clicked panel (UI). Toggling panel.");
                         TogglePanel();
                         return;
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// Detects direct mouse clicks and reticle raycasts in Desktop / PC testing mode.
-        /// </summary>
-        private void HandleDesktopMouseClicks()
-        {
-            if (!m_EnableMouseClick) return;
-            if (UnityEngine.InputSystem.Mouse.current == null ||
-                !UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) return;
-
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            // 1. Center-screen reticle raycast
-            Ray centerRay = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
-            if (Physics.Raycast(centerRay, out RaycastHit centerHit, 5.0f))
-            {
-                if (IsHitOnPhone(centerHit.collider))
-                {
-                    Debug.Log("[SmartphonePanelToggleTrigger] Smartphone clicked via desktop reticle raycast. Toggling panel.");
-                    TogglePanel();
-                    return;
-                }
-            }
-
-            // 2. Free cursor mouse raycast
-            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
-            Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
-            if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 5.0f))
-            {
-                if (IsHitOnPhone(mouseHit.collider))
-                {
-                    Debug.Log("[SmartphonePanelToggleTrigger] Smartphone clicked via desktop mouse cursor raycast. Toggling panel.");
-                    TogglePanel();
-                    return;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Handles keyboard shortcuts for quick testing on laptops.
-        /// </summary>
-        private void HandleKeyboardShortcuts()
-        {
-            if (!m_EnableKeyboardShortcut) return;
-
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb == null) return;
-
-            // Map KeyCode to Input System Key
-            bool shortcutPressed = IsKeyCodePressed(kb, m_ShortcutKey) || IsKeyCodePressed(kb, m_AlternativeShortcutKey);
-            if (shortcutPressed)
-            {
-                // Verify camera is looking in the general direction of phone or player is within range (5m)
-                Camera cam = Camera.main;
-                if (cam != null)
-                {
-                    float dist = Vector3.Distance(cam.transform.position, transform.position);
-                    if (dist <= 6.0f)
-                    {
-                        Debug.Log($"[SmartphonePanelToggleTrigger] Keyboard shortcut triggered near phone ({dist:F1}m). Toggling panel.");
-                        TogglePanel();
-                    }
-                }
-            }
-        }
-
-        private static bool IsKeyCodePressed(UnityEngine.InputSystem.Keyboard kb, KeyCode keyCode)
-        {
-            return keyCode switch
-            {
-                KeyCode.P => kb.pKey.wasPressedThisFrame,
-                KeyCode.Q => kb.qKey.wasPressedThisFrame,
-                KeyCode.E => kb.eKey.wasPressedThisFrame,
-                KeyCode.F => kb.fKey.wasPressedThisFrame,
-                KeyCode.T => kb.tKey.wasPressedThisFrame,
-                KeyCode.M => kb.mKey.wasPressedThisFrame,
-                KeyCode.N => kb.nKey.wasPressedThisFrame,
-                _ => false,
-            };
         }
 
         private bool IsHitOnPhone(Collider col)
@@ -335,7 +260,26 @@ namespace Kannko.Phone
             if (col.gameObject == gameObject || col.transform.IsChildOf(transform)) return true;
             if (m_PhoneController != null && (col.gameObject == m_PhoneController.gameObject || col.transform.IsChildOf(m_PhoneController.transform))) return true;
             if (m_TelegramMessagePopup != null && (col.gameObject == m_TelegramMessagePopup || col.transform.IsChildOf(m_TelegramMessagePopup.transform))) return true;
+            if (m_FloatingSmartphonePanel != null && (col.gameObject == m_FloatingSmartphonePanel || col.transform.IsChildOf(m_FloatingSmartphonePanel.transform))) return true;
             return false;
+        }
+
+        private bool IsHitOnPanelOrPhone(GameObject go)
+        {
+            if (go == null) return false;
+            if (go == gameObject || go.transform.IsChildOf(transform)) return true;
+            if (m_PhoneController != null && (go == m_PhoneController.gameObject || go.transform.IsChildOf(m_PhoneController.transform))) return true;
+            if (m_TelegramMessagePopup != null && (go == m_TelegramMessagePopup || go.transform.IsChildOf(m_TelegramMessagePopup.transform))) return true;
+            if (m_FloatingSmartphonePanel != null && (go == m_FloatingSmartphonePanel || go.transform.IsChildOf(m_FloatingSmartphonePanel.transform))) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Call to register an external toggle event (e.g. from ClearButton click) to maintain debounce sync.
+        /// </summary>
+        public void NotifyToggled()
+        {
+            m_LastToggleTime = Time.unscaledTime;
         }
 
         /// <summary>
@@ -343,7 +287,7 @@ namespace Kannko.Phone
         /// </summary>
         public void TogglePanel()
         {
-            if (Time.unscaledTime - m_LastToggleTime < m_ClickDebounceTime)
+            if (Application.isPlaying && Time.unscaledTime - m_LastToggleTime < m_ClickDebounceTime)
             {
                 return;
             }

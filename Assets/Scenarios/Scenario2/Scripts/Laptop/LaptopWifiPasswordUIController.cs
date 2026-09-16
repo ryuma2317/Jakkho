@@ -110,8 +110,6 @@ namespace Kannko.Laptop
             if (!Application.isPlaying) return;
 
             HandleVRControllerRayClicks();
-            HandleDesktopMouseClicks();
-            HandleKeyboardShortcuts();
         }
 
         public void FindReferencesIfNull()
@@ -552,6 +550,8 @@ namespace Kannko.Laptop
                 ConfigureRayInteractors();
             }
 
+            m_ActiveRayInteractors.RemoveAll(r => r == null);
+
             for (int i = 0; i < m_ActiveRayInteractors.Count; i++)
             {
                 var ray = m_ActiveRayInteractors[i];
@@ -574,36 +574,6 @@ namespace Kannko.Laptop
                     {
                         return;
                     }
-                }
-            }
-        }
-
-        private void HandleDesktopMouseClicks()
-        {
-            if (UnityEngine.InputSystem.Mouse.current == null ||
-                !UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) return;
-
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            // 1. Mouse cursor raycast
-            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
-            Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
-            if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 10f))
-            {
-                if (EvaluateHitElement(mouseHit.collider.gameObject))
-                {
-                    return;
-                }
-            }
-
-            // 2. Center-screen reticle raycast
-            Ray centerRay = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
-            if (Physics.Raycast(centerRay, out RaycastHit centerHit, 10f))
-            {
-                if (EvaluateHitElement(centerHit.collider.gameObject))
-                {
-                    return;
                 }
             }
         }
@@ -680,45 +650,6 @@ namespace Kannko.Laptop
         {
             if (hitObj == null || target == null) return false;
             return hitObj == target || hitObj.transform.IsChildOf(target.transform);
-        }
-
-        private void HandleKeyboardShortcuts()
-        {
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-
-            // Escape key cancels password screen if visible
-            if (kb != null && kb.escapeKey.wasPressedThisFrame)
-            {
-                if (IsPasswordUIVisible)
-                {
-                    OnCancelClicked();
-                    return;
-                }
-            }
-
-            // Quick shortcuts for desktop testing
-            if (IsNetworkListVisible)
-            {
-                if (kb != null && (kb.digit1Key.wasPressedThisFrame || kb.numpad1Key.wasPressedThisFrame))
-                {
-                    SelectNetwork("Jakkho-Cooffee");
-                }
-                else if (kb != null && (kb.digit2Key.wasPressedThisFrame || kb.numpad2Key.wasPressedThisFrame))
-                {
-                    SelectNetwork("Jakkho-Cooffee_free");
-                }
-                else if (kb != null && (kb.digit3Key.wasPressedThisFrame || kb.numpad3Key.wasPressedThisFrame))
-                {
-                    SelectNetwork("Slanh Wifi Ke Mes");
-                }
-            }
-            else if (IsPasswordUIVisible)
-            {
-                if (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame))
-                {
-                    OnConnectClicked();
-                }
-            }
         }
     }
 }

@@ -63,7 +63,6 @@ namespace Kannko.Phone
         private XRGrabInteractable m_GrabInteractable;
         private Rigidbody m_Rigidbody;
         private Coroutine m_ClosingCoroutine;
-        private bool m_WasDesktopHeld = false;
         private IXRSelectInteractor m_CurrentHoldingInteractor;
 
         public enum Handedness
@@ -87,10 +86,21 @@ namespace Kannko.Phone
         public GameObject FloatingSmartphonePanel => m_FloatingSmartphonePanel;
         public GameObject TelegramMessagePopup => m_TelegramMessagePopup;
 
+        /// <summary>
+        /// Resets the message read state back to false (unread).
+        /// </summary>
+        public void ResetMessageReadState()
+        {
+            m_IsMessageRead = false;
+        }
+
         private void Awake()
         {
             m_GrabInteractable = GetComponent<XRGrabInteractable>();
             m_Rigidbody = GetComponent<Rigidbody>();
+
+            // Fresh session: ensure message starts UNREAD so TelegramMessagePopup shows on START
+            m_IsMessageRead = false;
 
             FindReferencesIfNull();
 
@@ -169,10 +179,7 @@ namespace Kannko.Phone
 
         private void Update()
         {
-            HandleDesktopTestingInput();
             HandleVRControllerInput();
-            HandleDirectClickInteraction();
-            HandleFloatingPanelInput();
         }
 
         /// <summary>
@@ -235,134 +242,7 @@ namespace Kannko.Phone
         }
 
         /// <summary>
-        /// Handles secondary activation input when testing via desktop keyboard & mouse.
-        /// When the phone is held (e.g. via Left Mouse Button), pressing 'E' (or 'F') triggers
-        /// the SAME deliberate opening/closing state logic used by the VR controllers.
-        /// </summary>
-        private void HandleDesktopTestingInput()
-        {
-            bool isHeld = IsCurrentlyHeld();
-
-            // Detect desktop release: if was held and now released, close phone
-            if (m_WasDesktopHeld && !isHeld)
-            {
-                if (m_CurrentState == SmartphoneState.ActiveOpen || m_CurrentState == SmartphoneState.Closing)
-                {
-                    TriggerClose();
-                }
-            }
-            m_WasDesktopHeld = isHeld;
-
-            // Secondary interaction key 'E' while held on laptop/desktop
-            if (isHeld && Keyboard.current != null)
-            {
-                if (Keyboard.current.eKey.wasPressedThisFrame || Keyboard.current.fKey.wasPressedThisFrame)
-                {
-                    TogglePhoneState();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Handles direct mouse clicks and reticle raycasts in Desktop / PC testing mode.
-        /// Clicking on the physical Smartphone (or Telegram popup) opens the FloatingSmartphonePanel and marks message READ.
-        /// Clicking ClearButton or close targets on FloatingSmartphonePanel closes the panel.
-        /// </summary>
-        private void HandleDirectClickInteraction()
-        {
-            bool mousePressed = UnityEngine.InputSystem.Mouse.current != null &&
-                                UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame;
-            if (mousePressed)
-            {
-                Camera cam = Camera.main;
-                if (cam == null) return;
-
-                // Method A: Center screen raycast (Reticle / locked cursor mode)
-                Ray centerRay = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
-                if (Physics.Raycast(centerRay, out RaycastHit hit, 5.0f))
-                {
-                    if (IsHitOnPhoneOrPopup(hit.collider))
-                    {
-                        Debug.Log("[SmartphoneController] Smartphone clicked via Reticle raycast! Toggling floating panel.");
-                        ToggleFloatingPanel();
-                        return;
-                    }
-
-                    if (IsHitOnFloatingClose(hit.collider))
-                    {
-                        Debug.Log("[SmartphoneController] Close button clicked via Reticle raycast!");
-                        CloseFloatingPanel();
-                        return;
-                    }
-                }
-
-                // Method B: Mouse cursor position raycast (free cursor mode)
-                Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
-                Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
-                if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 5.0f))
-                {
-                    if (IsHitOnPhoneOrPopup(mouseHit.collider))
-                    {
-                        Debug.Log("[SmartphoneController] Smartphone clicked via Mouse raycast! Toggling floating panel.");
-                        ToggleFloatingPanel();
-                        return;
-                    }
-
-                    if (IsHitOnFloatingClose(mouseHit.collider))
-                    {
-                        Debug.Log("[SmartphoneController] Close button clicked via Mouse raycast!");
-                        CloseFloatingPanel();
-                        return;
-                    }
-                }
-            }
-        }
-
-        private bool IsHitOnPhoneOrPopup(Collider col)
-        {
-            if (col == null) return false;
-            if (col.gameObject == gameObject || col.transform.IsChildOf(transform)) return true;
-            if (m_TelegramMessagePopup != null && (col.gameObject == m_TelegramMessagePopup || col.transform.IsChildOf(m_TelegramMessagePopup.transform))) return true;
-            return false;
-        }
-
-        private bool IsHitOnFloatingClose(Collider col)
-        {
-            if (col == null || m_FloatingSmartphonePanel == null || !m_FloatingSmartphonePanel.activeSelf) return false;
-            if (col.gameObject.name == "ClearButton" || col.gameObject.name == "HomeIndicator") return true;
-            Transform screen = m_FloatingSmartphonePanel.transform.Find("ScreenContainer");
-            if (screen != null)
-            {
-                Transform clearBtn = screen.Find("ClearButton");
-                if (clearBtn != null && (col.gameObject == clearBtn.gameObject || col.transform.IsChildOf(clearBtn))) return true;
-                Transform home = screen.Find("HomeIndicator");
-                if (home != null && (col.gameObject == home.gameObject || col.transform.IsChildOf(home))) return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Handles keyboard shortcuts and exit inputs while FloatingSmartphonePanel is open.
-        /// </summary>
-        private void HandleFloatingPanelInput()
-        {
-            if (m_FloatingSmartphonePanel == null || !m_FloatingSmartphonePanel.activeSelf) return;
-
-            // Desktop testing shortcuts: Escape, Backspace, or 'E' key closes the floating panel
-            if (Keyboard.current != null)
-            {
-                if (Keyboard.current.escapeKey.wasPressedThisFrame ||
-                    Keyboard.current.backspaceKey.wasPressedThisFrame ||
-                    Keyboard.current.eKey.wasPressedThisFrame)
-                {
-                    Debug.Log("[SmartphoneController] Floating panel closed via keyboard shortcut.");
-                    CloseFloatingPanel();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Returns true if the phone is currently held by a VR interactor or desktop testing controller.
+        /// Returns true if the phone is currently held by a VR interactor.
         /// </summary>
         public bool IsCurrentlyHeld()
         {
@@ -375,12 +255,6 @@ namespace Kannko.Phone
             if (m_Rigidbody == null) m_Rigidbody = GetComponent<Rigidbody>();
 
             if (m_GrabInteractable != null && m_GrabInteractable.isSelected)
-            {
-                return true;
-            }
-
-            // Desktop testing mode disables gravity on the held rigidbody while holding
-            if (m_Rigidbody != null && !m_Rigidbody.useGravity)
             {
                 return true;
             }
@@ -522,6 +396,19 @@ namespace Kannko.Phone
             if (m_FloatingSmartphonePanel == null) FindReferencesIfNull();
             if (m_FloatingSmartphonePanel == null) return;
 
+            // Ensure root floating panel has a BoxCollider so 3D raycasts can click it
+            BoxCollider panelCol = m_FloatingSmartphonePanel.GetComponent<BoxCollider>();
+            if (panelCol == null)
+            {
+                panelCol = m_FloatingSmartphonePanel.AddComponent<BoxCollider>();
+            }
+            RectTransform panelRt = m_FloatingSmartphonePanel.GetComponent<RectTransform>();
+            if (panelRt != null)
+            {
+                panelCol.size = new Vector3(panelRt.rect.width, panelRt.rect.height, 5f);
+                panelCol.center = new Vector3(panelRt.rect.width * (0.5f - panelRt.pivot.x), panelRt.rect.height * (0.5f - panelRt.pivot.y), 0f);
+            }
+
             Transform screen = m_FloatingSmartphonePanel.transform.Find("ScreenContainer");
             if (screen != null)
             {
@@ -540,9 +427,23 @@ namespace Kannko.Phone
                     if (col == null)
                     {
                         col = clearBtnTrans.gameObject.AddComponent<BoxCollider>();
-                        RectTransform rt = clearBtnTrans.GetComponent<RectTransform>();
-                        if (rt != null) col.size = new Vector3(rt.rect.width, rt.rect.height, 10f);
                     }
+                    RectTransform rt = clearBtnTrans.GetComponent<RectTransform>();
+                    if (rt != null)
+                    {
+                        col.size = new Vector3(rt.rect.width, rt.rect.height, 10f);
+                        col.center = new Vector3(rt.rect.width * (0.5f - rt.pivot.x), rt.rect.height * (0.5f - rt.pivot.y), 0f);
+                    }
+
+                    var clearInteractable = clearBtnTrans.GetComponent<XRSimpleInteractable>();
+                    if (clearInteractable == null)
+                    {
+                        clearInteractable = clearBtnTrans.gameObject.AddComponent<XRSimpleInteractable>();
+                    }
+                    clearInteractable.selectEntered.RemoveAllListeners();
+                    clearInteractable.selectEntered.AddListener(_ => CloseFloatingPanel());
+                    clearInteractable.activated.RemoveAllListeners();
+                    clearInteractable.activated.AddListener(_ => CloseFloatingPanel());
                 }
 
                 // Wire HomeIndicator
@@ -558,9 +459,23 @@ namespace Kannko.Phone
                     if (homeCol == null)
                     {
                         homeCol = homeTrans.gameObject.AddComponent<BoxCollider>();
-                        RectTransform rt = homeTrans.GetComponent<RectTransform>();
-                        if (rt != null) homeCol.size = new Vector3(rt.rect.width, 30f, 10f);
                     }
+                    RectTransform rt = homeTrans.GetComponent<RectTransform>();
+                    if (rt != null)
+                    {
+                        homeCol.size = new Vector3(rt.rect.width, 30f, 10f);
+                        homeCol.center = new Vector3(rt.rect.width * (0.5f - rt.pivot.x), 30f * (0.5f - rt.pivot.y), 0f);
+                    }
+
+                    var homeInteractable = homeTrans.GetComponent<XRSimpleInteractable>();
+                    if (homeInteractable == null)
+                    {
+                        homeInteractable = homeTrans.gameObject.AddComponent<XRSimpleInteractable>();
+                    }
+                    homeInteractable.selectEntered.RemoveAllListeners();
+                    homeInteractable.selectEntered.AddListener(_ => CloseFloatingPanel());
+                    homeInteractable.activated.RemoveAllListeners();
+                    homeInteractable.activated.AddListener(_ => CloseFloatingPanel());
                 }
             }
         }
@@ -616,6 +531,18 @@ namespace Kannko.Phone
             if (m_TelegramMessagePopup != null)
             {
                 m_TelegramMessagePopup.SetActive(false);
+            }
+
+            // Return physical phone screen to sleep/physical state
+            if (m_CurrentState == SmartphoneState.ActiveOpen)
+            {
+                TriggerClose();
+            }
+
+            var toggleTrigger = GetComponent<SmartphonePanelToggleTrigger>();
+            if (toggleTrigger != null)
+            {
+                toggleTrigger.NotifyToggled();
             }
 
             // Closing the panel must not reset the message state (m_IsMessageRead remains true)

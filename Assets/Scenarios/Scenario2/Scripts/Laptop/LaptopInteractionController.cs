@@ -42,12 +42,6 @@ namespace Kannko.Laptop
         [SerializeField] private InputActionProperty m_LeftTriggerAction;
         [SerializeField] private InputActionProperty m_RightTriggerAction;
 
-        [Header("Desktop / Laptop Test Controls")]
-        [SerializeField] private bool m_EnableMouseClick = true;
-        [SerializeField] private bool m_EnableKeyboardShortcut = true;
-        [SerializeField] private KeyCode m_ShortcutKey = KeyCode.L;
-        [SerializeField] private KeyCode m_AlternativeShortcutKey = KeyCode.E;
-
         [Header("Events")]
         public UnityEvent OnPanelOpened = new UnityEvent();
         public UnityEvent OnPanelClosed = new UnityEvent();
@@ -134,8 +128,6 @@ namespace Kannko.Laptop
             if (!Application.isPlaying) return;
 
             HandleVRControllerRayClicks();
-            HandleDesktopMouseClicks();
-            HandleKeyboardShortcuts();
         }
 
         /// <summary>
@@ -307,6 +299,8 @@ namespace Kannko.Laptop
                 ConfigureRayInteractors();
             }
 
+            m_ActiveRayInteractors.RemoveAll(r => r == null);
+
             for (int i = 0; i < m_ActiveRayInteractors.Count; i++)
             {
                 var ray = m_ActiveRayInteractors[i];
@@ -322,96 +316,6 @@ namespace Kannko.Laptop
                     }
                 }
             }
-        }
-
-        /// <summary>
-        /// Detects direct mouse clicks and reticle raycasts in Desktop / PC testing mode.
-        /// </summary>
-        private void HandleDesktopMouseClicks()
-        {
-            if (!m_EnableMouseClick) return;
-            if (UnityEngine.InputSystem.Mouse.current == null ||
-                !UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) return;
-            if (!CanInteract) return;
-
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            // 1. Center-screen reticle raycast
-            Ray centerRay = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
-            if (Physics.Raycast(centerRay, out RaycastHit centerHit, 5.0f))
-            {
-                if (IsHitOnLaptop(centerHit.collider))
-                {
-                    Debug.Log("[LaptopInteractionController] Laptop clicked via desktop reticle raycast. Toggling panel.");
-                    TogglePanel();
-                    return;
-                }
-            }
-
-            // 2. Free cursor mouse raycast
-            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
-            Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
-            if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 5.0f))
-            {
-                if (IsHitOnLaptop(mouseHit.collider))
-                {
-                    Debug.Log("[LaptopInteractionController] Laptop clicked via desktop mouse cursor raycast. Toggling panel.");
-                    TogglePanel();
-                    return;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Handles keyboard shortcuts for quick testing on laptops.
-        /// </summary>
-        private void HandleKeyboardShortcuts()
-        {
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
-            {
-                if (IsPanelOpen)
-                {
-                    Debug.Log("[LaptopInteractionController] Escape key pressed. Closing laptop panel.");
-                    ClosePanel();
-                    return;
-                }
-            }
-
-            if (!m_EnableKeyboardShortcut) return;
-
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb == null) return;
-
-            bool shortcutPressed = IsKeyCodePressed(kb, m_ShortcutKey) || IsKeyCodePressed(kb, m_AlternativeShortcutKey);
-            if (shortcutPressed)
-            {
-                if (!CanInteract) return;
-
-                Camera cam = Camera.main;
-                if (cam != null)
-                {
-                    float dist = Vector3.Distance(cam.transform.position, transform.position);
-                    if (dist <= 6.0f)
-                    {
-                        Debug.Log($"[LaptopInteractionController] Keyboard shortcut triggered near laptop ({dist:F1}m). Toggling panel.");
-                        TogglePanel();
-                    }
-                }
-            }
-        }
-
-        private static bool IsKeyCodePressed(UnityEngine.InputSystem.Keyboard kb, KeyCode keyCode)
-        {
-            return keyCode switch
-            {
-                KeyCode.L => kb.lKey.wasPressedThisFrame,
-                KeyCode.E => kb.eKey.wasPressedThisFrame,
-                KeyCode.F => kb.fKey.wasPressedThisFrame,
-                KeyCode.T => kb.tKey.wasPressedThisFrame,
-                KeyCode.P => kb.pKey.wasPressedThisFrame,
-                _ => false,
-            };
         }
 
         private bool IsHitOnLaptop(Collider col)

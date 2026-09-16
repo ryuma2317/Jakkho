@@ -1008,8 +1008,10 @@ MonoBehaviour:
   m_InteractiveObjects: {fileID: 0}
   m_TelegramMessagePopup: {fileID: 0}
   m_AttachToMainCamera: 1
+  m_PreserveLocalTransformOffsets: 1
   m_CameraDistance: 1.25
   m_CanvasScale: 0.0011
+  m_AutoAdjustColliders: 1
   m_BadgeTitle: "\u25C6 SCENARIO 2 BRIEFING"
   m_DialogueLines:
   - 'You have just arrived at the cafe and ordered the drink .

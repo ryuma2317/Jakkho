@@ -27,8 +27,8 @@ namespace Kannko.Scenario2
         [Tooltip("Reference to the EnlargedWifiPanel to ensure it is visible when returning to laptop.")]
         [SerializeField] private GameObject m_EnlargedWifiPanel;
 
-        [Tooltip("Reference to the Scenario 2 Lessons Learned Debrief panel.")]
-        [SerializeField] private GameObject m_LessonLearnedPanel;
+        [Tooltip("Reference to the StopPlayingDecisionPanel under WorldUI.")]
+        [SerializeField] private GameObject m_StopPlayingDecisionPanel;
 
         [Header("Buttons")]
         [SerializeField] private Button m_BackToScenarioButton;
@@ -45,6 +45,7 @@ namespace Kannko.Scenario2
         private readonly List<XRRayInteractor> m_ActiveRayInteractors = new List<XRRayInteractor>();
 
         public bool IsConfirmationOpen => m_ExitConfirmationPanel != null && m_ExitConfirmationPanel.activeSelf;
+        public GameObject StopPlayingDecisionPanel => m_StopPlayingDecisionPanel;
 
         private void Awake()
         {
@@ -77,7 +78,6 @@ namespace Kannko.Scenario2
         {
             if (!Application.isPlaying || !IsConfirmationOpen) return;
 
-            HandleDesktopMouseClicks();
             HandleVRControllerRayClicks();
         }
 
@@ -104,21 +104,26 @@ namespace Kannko.Scenario2
                 if (t != null) m_EnlargedWifiPanel = t.gameObject;
             }
 
+            if (m_StopPlayingDecisionPanel == null)
+            {
+                var wui = GameObject.Find("WorldUI");
+                if (wui != null)
+                {
+                    var t = wui.transform.Find("StopPlayingDecisionPanel");
+                    if (t != null) m_StopPlayingDecisionPanel = t.gameObject;
+                }
+                if (m_StopPlayingDecisionPanel == null)
+                {
+                    var go = GameObject.Find("StopPlayingDecisionPanel");
+                    if (go != null) m_StopPlayingDecisionPanel = go;
+                }
+            }
+
             if (m_BackToScenarioButton == null && m_ExitConfirmationPanel != null)
             {
                 var btn = m_ExitConfirmationPanel.transform.Find("ActionButtons/BackToScenarioButton");
                 if (btn == null) btn = m_ExitConfirmationPanel.transform.Find("BackToScenarioButton");
                 if (btn != null) m_BackToScenarioButton = btn.GetComponent<Button>();
-            }
-
-            if (m_LessonLearnedPanel == null)
-            {
-                var wui = GameObject.Find("WorldUI");
-                if (wui != null)
-                {
-                    var t = wui.transform.Find("Scenario2_Lesson_Learned_Panel");
-                    if (t != null) m_LessonLearnedPanel = t.gameObject;
-                }
             }
 
             if (m_ExitScenarioButton == null && m_ExitConfirmationPanel != null)
@@ -170,6 +175,11 @@ namespace Kannko.Scenario2
                 m_FloatingLaptopPanel.SetActive(false);
             }
 
+            if (m_StopPlayingDecisionPanel != null)
+            {
+                m_StopPlayingDecisionPanel.SetActive(false);
+            }
+
             if (m_ExitConfirmationPanel != null)
             {
                 m_ExitConfirmationPanel.SetActive(true);
@@ -200,6 +210,11 @@ namespace Kannko.Scenario2
 
             HideExitConfirmation();
 
+            if (m_StopPlayingDecisionPanel != null)
+            {
+                m_StopPlayingDecisionPanel.SetActive(false);
+            }
+
             if (m_FloatingLaptopPanel != null)
             {
                 m_FloatingLaptopPanel.SetActive(true);
@@ -222,26 +237,7 @@ namespace Kannko.Scenario2
             if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
             m_LastClickTime = Time.unscaledTime;
 
-            FindReferencesIfNull();
-
-            // If the Lesson Learned panel is present and not yet shown, present the Incident Debrief
-            if (m_LessonLearnedPanel != null && !m_LessonLearnedPanel.activeSelf)
-            {
-                Debug.Log("[Scenario2ExitController] Player confirmed exit. Presenting Incident Debrief & Lessons Learned!");
-                HideExitConfirmation();
-                if (m_FloatingLaptopPanel != null) m_FloatingLaptopPanel.SetActive(false);
-                m_LessonLearnedPanel.SetActive(true);
-                return;
-            }
-
-            DirectExitToMenu();
-        }
-
-        public void DirectExitToMenu()
-        {
-            Debug.Log("[Scenario2ExitController] Loading scenario selection / main menu...");
-
-            VRSetup.VRCardNavigationManager.navigateToScenarioSelectionDirectly = true;
+            Debug.Log("[Scenario2ExitController] Player confirmed exit. Loading scenario selection / main menu...");
 
             if (GameManager.Instance != null)
             {
@@ -325,6 +321,7 @@ namespace Kannko.Scenario2
 
         private void HandleVRControllerRayClicks()
         {
+            m_ActiveRayInteractors.RemoveAll(r => r == null);
             if (m_ActiveRayInteractors.Count == 0) ConfigureRayInteractors();
 
             for (int i = 0; i < m_ActiveRayInteractors.Count; i++)
@@ -342,30 +339,6 @@ namespace Kannko.Scenario2
                 {
                     if (DispatchHit(physHit.collider.gameObject)) return;
                 }
-            }
-        }
-
-        private void HandleDesktopMouseClicks()
-        {
-            if (UnityEngine.InputSystem.Mouse.current == null ||
-                !UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) return;
-
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            // 1. Mouse position raycast
-            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
-            Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
-            if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 10f))
-            {
-                if (DispatchHit(mouseHit.collider.gameObject)) return;
-            }
-
-            // 2. Center reticle raycast
-            Ray centerRay = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
-            if (Physics.Raycast(centerRay, out RaycastHit centerHit, 10f))
-            {
-                if (DispatchHit(centerHit.collider.gameObject)) return;
             }
         }
 

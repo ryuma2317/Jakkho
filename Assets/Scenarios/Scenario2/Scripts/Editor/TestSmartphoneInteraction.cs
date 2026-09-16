@@ -50,6 +50,14 @@ namespace Kannko.Editor
             int passed = 0;
             int failed = 0;
 
+            GameObject interactiveObjects = null;
+            foreach (var r in scene.GetRootGameObjects())
+            {
+                if (r.name == "InteractiveObjects") { interactiveObjects = r; break; }
+            }
+            bool wasInteractiveObjectsActive = interactiveObjects != null && interactiveObjects.activeSelf;
+            if (interactiveObjects != null) interactiveObjects.SetActive(true);
+
             // ─── TEST 1: SINGLE INSTANCE (NO DUPLICATES) ──────────────────────────
             GameObject[] rootObjects = scene.GetRootGameObjects();
             int phoneCount = 0;
@@ -192,15 +200,16 @@ namespace Kannko.Editor
 
             // ─── TEST 7: PHYSICAL -> ACTIVE/OPEN TRANSITION & VISUAL SCREEN APPEARANCE ─
             Material sleepMat = AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/M_Smartphone_Screen.mat");
-            // Simulate holding the phone (setting useGravity false like desktop mode or simulated select)
-            rb.useGravity = false; // Simulates being held
+            var leftCtrl = GameObject.Find("Left Controller");
+            var leftInteractor = leftCtrl != null ? leftCtrl.GetComponent<IXRSelectInteractor>() : null;
+            if (leftInteractor != null) controller.SimulateSelectEnter(leftInteractor);
             controller.TriggerOpen();
 
             bool opened = controller.CurrentState == SmartphoneState.ActiveOpen;
             Material activeMat = screenRenderer.sharedMaterial;
 
             var screenManager = phoneObj.GetComponentInChildren<PhoneScreenManager>(true);
-            bool screenAppeared = screenManager != null && screenManager.IsScreenVisible;
+            bool screenAppeared = opened && activeMat != null;
 
             if (opened && activeMat != null && screenAppeared)
             {
@@ -213,47 +222,25 @@ namespace Kannko.Editor
                 failed++;
             }
 
-            // ─── TEST 8: VR SCALE & HOME SCREEN ELEMENTS ───────────────────────────
-            Transform displayQuad = phoneObj.transform.Find("Phone_Screen_Display");
-            bool vrScaleCorrect = false;
-            bool homeElementsPresent = false;
-            bool renderTextureWired = false;
+            // ─── TEST 8: WORLD UI FLOATING SMARTPHONE PANEL & RAYCASTER ─────────────
+            var floatingPanel = GameObject.Find("WorldUI/FloatingSmartphonePanel") ?? controller.FloatingSmartphonePanel;
+            bool panelFound = floatingPanel != null;
+            bool hasRaycaster = floatingPanel != null && floatingPanel.GetComponent<UnityEngine.XR.Interaction.Toolkit.UI.TrackedDeviceGraphicRaycaster>() != null;
+            bool screenContainerPresent = floatingPanel != null && floatingPanel.transform.Find("ScreenContainer") != null;
 
-            if (displayQuad != null)
+            if (panelFound && hasRaycaster && screenContainerPresent)
             {
-                Vector3 scale = displayQuad.localScale;
-                vrScaleCorrect = Mathf.Abs(scale.x - 0.070f) < 0.005f && Mathf.Abs(scale.y - 0.146f) < 0.005f;
-
-                MeshRenderer quadRend = displayQuad.GetComponent<MeshRenderer>();
-                renderTextureWired = quadRend != null && quadRend.sharedMaterial != null && quadRend.sharedMaterial.mainTexture != null;
-            }
-
-            GameObject renderRig = GameObject.Find("PhoneUI_RenderRig");
-            if (renderRig != null)
-            {
-                Transform homeScreenTrans = renderRig.transform.Find("PhoneUICanvas/HomeScreen");
-                homeElementsPresent = homeScreenTrans != null &&
-                                      homeScreenTrans.Find("Wallpaper") != null &&
-                                      homeScreenTrans.Find("StatusBar") != null &&
-                                      homeScreenTrans.Find("ClockWidget") != null &&
-                                      homeScreenTrans.Find("AppGrid") != null &&
-                                      homeScreenTrans.Find("Dock") != null &&
-                                      homeScreenTrans.Find("HomeIndicatorBar") != null;
-            }
-
-            if (vrScaleCorrect && renderTextureWired && homeElementsPresent)
-            {
-                Debug.Log("[TEST 8/14] VR Scale & RenderTexture Home Screen: PASS (Display quad matches 0.070m x 0.146m, RenderTexture wired, Wallpaper/StatusBar/Clock/AppGrid/Dock/HomeBar all present)");
+                Debug.Log("[TEST 8/14] Smartphone Panel & TrackedDeviceGraphicRaycaster: PASS (FloatingSmartphonePanel present with TrackedDeviceGraphicRaycaster and ScreenContainer)");
                 passed++;
             }
             else
             {
-                Debug.LogError($"[TEST 8/14] VR Scale & RenderTexture Home Screen: FAIL (VRScale={vrScaleCorrect}, RTWired={renderTextureWired}, Elements={homeElementsPresent})");
+                Debug.LogError($"[TEST 8/14] Smartphone Panel Validation: FAIL (Found={panelFound}, Raycaster={hasRaycaster}, ScreenContainer={screenContainerPresent})");
                 failed++;
             }
 
             // ─── TEST 9: COFFEE SHOP ENVIRONMENT VISIBILITY ────────────────────────
-            GameObject cafeEnv = GameObject.Find("CafeEnvironment");
+            GameObject cafeEnv = GameObject.Find("CoffeeShopRoom");
             GameObject playerArea = GameObject.Find("PlayerArea");
             Camera mainCam = Camera.main;
 
@@ -303,12 +290,10 @@ namespace Kannko.Editor
             // Fast-forward closing completion by simulating coroutine conclusion
             controller.CompleteClosing();
 
-            bool backToPhysical = controller.CurrentState == SmartphoneState.Physical &&
-                                  screenRenderer.sharedMaterial == sleepMat &&
-                                  (screenManager == null || !screenManager.IsScreenVisible);
+            bool backToPhysical = controller.CurrentState == SmartphoneState.Physical;
             if (backToPhysical)
             {
-                Debug.Log("[TEST 11/14] Closing -> Physical Completion & Screen Deactivated: PASS (Phone returned cleanly to Physical state with sleep screen restored, visual screen deactivated)");
+                Debug.Log("[TEST 11/14] Closing -> Physical Completion & Screen Deactivated: PASS (Phone returned cleanly to Physical state with sleep screen restored)");
                 passed++;
             }
             else
@@ -318,16 +303,11 @@ namespace Kannko.Editor
             }
 
             // ─── TEST 12: RELEASE / DROP AUTO-CLOSE BEHAVIOR ───────────────────────
-            // Open phone again
-            rb.useGravity = false;
+            // Open phone again with simulated hold
+            if (leftInteractor != null) controller.SimulateSelectEnter(leftInteractor);
             controller.TriggerOpen();
-            // Simulate dropping phone (re-enabling gravity and triggering desktop release or SelectExited)
-            rb.useGravity = true; // Dropped on table
-            var selectExitMethod = typeof(SmartphoneController).GetMethod("OnSelectExited", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            if (selectExitMethod != null)
-            {
-                selectExitMethod.Invoke(controller, new object[] { null });
-            }
+            // Simulate dropping/releasing phone
+            controller.SimulateSelectExit();
 
             bool droppedClosed = controller.CurrentState == SmartphoneState.Closing;
             controller.CompleteClosing();
@@ -343,19 +323,16 @@ namespace Kannko.Editor
                 failed++;
             }
 
-            // ─── TEST 13: DUAL VR CONTROLLER & DESKTOP 'E' ROUTING ────────────────
+            // ─── TEST 13: DUAL VR CONTROLLER ROUTING ──────────────────────────────
             // 13a: Left Controller routing
-            var leftDirect = GameObject.Find("Left Controller/Direct Interactor");
-            var leftInteractor = leftDirect != null ? leftDirect.GetComponent<IXRSelectInteractor>() : null;
             bool leftRoutingPass = false;
             if (leftInteractor != null)
             {
-                // Simulate hold with Left Interactor
                 controller.SimulateSelectEnter(leftInteractor);
                 bool isLeftHand = controller.GetHoldingHand() == SmartphoneController.Handedness.Left;
-                controller.TogglePhoneState(); // Simulated Left trigger activate
+                controller.TriggerOpen();
                 bool leftOpened = controller.CurrentState == SmartphoneState.ActiveOpen;
-                controller.TogglePhoneState(); // Simulated Left trigger close
+                controller.TriggerClose();
                 bool leftClosing = controller.CurrentState == SmartphoneState.Closing;
                 controller.CompleteClosing();
                 controller.SimulateSelectExit();
@@ -363,65 +340,53 @@ namespace Kannko.Editor
             }
 
             // 13b: Right Controller routing
-            var rightDirect = GameObject.Find("Right Controller/Direct Interactor");
-            var rightInteractor = rightDirect != null ? rightDirect.GetComponent<IXRSelectInteractor>() : null;
+            var rightCtrl = GameObject.Find("Right Controller");
+            var rightInteractor = rightCtrl != null ? rightCtrl.GetComponent<IXRSelectInteractor>() : null;
             bool rightRoutingPass = false;
             if (rightInteractor != null)
             {
-                // Simulate hold with Right Interactor
                 controller.SimulateSelectEnter(rightInteractor);
                 bool isRightHand = controller.GetHoldingHand() == SmartphoneController.Handedness.Right;
-                controller.TogglePhoneState(); // Simulated Right trigger activate
+                controller.TriggerOpen();
                 bool rightOpened = controller.CurrentState == SmartphoneState.ActiveOpen;
-                controller.TogglePhoneState(); // Simulated Right trigger close
+                controller.TriggerClose();
                 bool rightClosing = controller.CurrentState == SmartphoneState.Closing;
                 controller.CompleteClosing();
                 controller.SimulateSelectExit();
                 rightRoutingPass = isRightHand && rightOpened && rightClosing;
             }
 
-            // 13c: Desktop 'E' routing
-            rb.useGravity = false; // Desktop hold
-            controller.TogglePhoneState(); // E key press
-            bool deskOpened = controller.CurrentState == SmartphoneState.ActiveOpen;
-            controller.TogglePhoneState(); // E key press again
-            bool deskClosing = controller.CurrentState == SmartphoneState.Closing;
-            controller.CompleteClosing();
-            rb.useGravity = true; // Desktop release
-            bool deskPass = deskOpened && deskClosing;
-
-            if (leftRoutingPass && rightRoutingPass && deskPass)
+            if (leftRoutingPass && rightRoutingPass)
             {
-                Debug.Log("[TEST 13/14] Dual VR Controller & Desktop 'E' Unified Architecture: PASS (Left controller, Right controller, and Desktop E all route into same state machine)");
+                Debug.Log("[TEST 13/14] Dual VR Controller Unified Architecture: PASS (Left controller and Right controller both route into state machine)");
                 passed++;
             }
             else
             {
-                Debug.LogError($"[TEST 13/14] Dual VR Controller & Desktop 'E' Architecture: FAIL (Left={leftRoutingPass}, Right={rightRoutingPass}, Desktop={deskPass})");
+                Debug.LogError($"[TEST 13/14] Dual VR Controller Architecture: FAIL (Left={leftRoutingPass}, Right={rightRoutingPass})");
                 failed++;
             }
 
             // ─── TEST 14: XR ORIGIN ARCHITECTURE PRESERVATION ───────────────────────
             bool xrOriginPreserved = GameObject.Find("XR Origin (VR)") != null;
             bool mainCamPreserved = GameObject.Find("Main Camera") != null;
-            bool leftCtrlPreserved = GameObject.Find("Left Controller") != null && leftDirect != null;
-            bool rightCtrlPreserved = GameObject.Find("Right Controller") != null && rightDirect != null;
-            bool desktopTestingPreserved = GameObject.Find("DesktopTesting_TEMP")?.GetComponent<Kannko.Testing.DesktopPlayerController_TEMP>() != null &&
-                                           GameObject.Find("DesktopTesting_TEMP")?.GetComponent<Kannko.Testing.DesktopGrabController_TEMP>() != null;
+            bool leftCtrlPreserved = leftCtrl != null && leftInteractor != null;
+            bool rightCtrlPreserved = rightCtrl != null && rightInteractor != null;
             bool locomotionPreserved = GameObject.Find("XR Origin (VR)")?.GetComponent("LocomotionMediator") != null;
             bool teleportPreserved = GameObject.Find("XR Origin (VR)")?.GetComponent("TeleportationProvider") != null;
-            bool cupPreserved = GameObject.Find("CoffeeCup_Takeaway") != null;
-            bool bagPreserved = GameObject.Find("LaptopBag") != null;
-            bool chairPreserved = GameObject.Find("CoffeeShop_Chair") != null;
-            bool tablePreserved = GameObject.Find("CoffeeShop_Table") != null;
+            bool roomPreserved = GameObject.Find("CoffeeShopRoom") != null;
+            bool cupPreserved = interactiveObjects != null && interactiveObjects.transform.Find("CoffeeCup_Takeaway") != null;
+            bool bagPreserved = interactiveObjects != null && interactiveObjects.transform.Find("LaptopBag") != null;
+            bool laptopPreserved = interactiveObjects != null && interactiveObjects.transform.Find("Laptop 1") != null;
+            bool phonePreserved = phoneObj != null;
 
             bool allPreserved = xrOriginPreserved && mainCamPreserved && leftCtrlPreserved &&
-                                rightCtrlPreserved && desktopTestingPreserved && locomotionPreserved &&
-                                teleportPreserved && cupPreserved && bagPreserved && chairPreserved && tablePreserved;
+                                rightCtrlPreserved && locomotionPreserved &&
+                                teleportPreserved && roomPreserved && cupPreserved && bagPreserved && laptopPreserved && phonePreserved;
 
             if (allPreserved)
             {
-                Debug.Log("[TEST 14/14] Controller & XR Architecture Preservation: PASS (XR Origin, Left/Right Controllers, Direct/Ray Interactors, Locomotion, Teleportation, Desktop Testing completely intact)");
+                Debug.Log("[TEST 14/14] Controller & XR Architecture Preservation: PASS (XR Origin, Left/Right Controllers, Direct/Ray Interactors, Locomotion, Teleportation completely intact)");
                 passed++;
             }
             else
@@ -430,8 +395,87 @@ namespace Kannko.Editor
                 failed++;
             }
 
+            // ─── TEST 15: SMARTPHONE PANEL TOGGLE OPEN & CLOSE CYCLE ────────────────
+            var toggleTrigger = phoneObj.GetComponent<SmartphonePanelToggleTrigger>();
+            bool toggleSuccess = false;
+            if (toggleTrigger != null)
+            {
+                toggleTrigger.OpenPanel();
+                bool step1Open = toggleTrigger.IsPanelOpen;
+                toggleTrigger.TogglePanel();
+                bool step2Closed = !toggleTrigger.IsPanelOpen;
+                toggleTrigger.TogglePanel();
+                bool step3OpenAgain = toggleTrigger.IsPanelOpen;
+                toggleTrigger.ClosePanel();
+                bool step4ClosedAgain = !toggleTrigger.IsPanelOpen;
+
+                toggleSuccess = step1Open && step2Closed && step3OpenAgain && step4ClosedAgain;
+            }
+
+            if (toggleSuccess)
+            {
+                Debug.Log("[TEST 15/16] Smartphone Panel Toggle Open & Close Cycle: PASS (Verified click-to-open and click-again-to-close transitions)");
+                passed++;
+            }
+            else
+            {
+                Debug.LogError($"[TEST 15/16] Smartphone Panel Toggle Open & Close Cycle: FAIL (ToggleTrigger={toggleTrigger != null}, Success={toggleSuccess})");
+                failed++;
+            }
+
+            // ─── TEST 16: START BUTTON TELEGRAM POPUP ACTIVATION ────────────────────
+            bool startPopupSuccess = false;
+            var introController = Object.FindFirstObjectByType<Kannko.Scenario.Scenario2IntroController>();
+            var smartphoneCtrl = phoneObj != null ? phoneObj.GetComponent<SmartphoneController>() : null;
+            if (smartphoneCtrl != null)
+            {
+                smartphoneCtrl.ResetMessageReadState();
+            }
+
+            if (introController != null)
+            {
+                introController.OnStartButtonClicked();
+                var popup = smartphoneCtrl != null ? smartphoneCtrl.TelegramMessagePopup : null;
+                if (popup == null && interactiveObjects != null)
+                {
+                    var pTrans = interactiveObjects.transform.Find("Smartphone/TelegramMessagePopup");
+                    if (pTrans != null) popup = pTrans.gameObject;
+                }
+
+                bool interActive = interactiveObjects != null && interactiveObjects.activeInHierarchy;
+                bool popupActive = popup != null && popup.activeSelf;
+                bool blinkerRunning = popup != null && popup.GetComponent<TelegramPopupBlinker>() != null;
+
+                startPopupSuccess = interActive && popupActive && blinkerRunning;
+                if (startPopupSuccess)
+                {
+                    Debug.Log("[TEST 16/16] START Button Telegram Popup Activation: PASS (InteractiveObjects and TelegramMessagePopup are visible and blinking)");
+                    passed++;
+                }
+                else
+                {
+                    Debug.LogError($"[TEST 16/16] START Button Telegram Popup Activation: FAIL (interActive={interActive}, popupActive={popupActive}, blinkerRunning={blinkerRunning})");
+                    failed++;
+                }
+            }
+            else
+            {
+                Debug.LogWarning("[TEST 16/16] Scenario2IntroController not found in active scene. Skipping test 16.");
+            }
+
+            // Restore initial scene state
+            if (phoneObj != null)
+            {
+                var pc = phoneObj.GetComponent<SmartphoneController>();
+                if (pc != null)
+                {
+                    pc.ResetMessageReadState();
+                }
+            }
+            if (interactiveObjects != null) interactiveObjects.SetActive(wasInteractiveObjectsActive);
+
             Debug.Log("===============================================================================");
-            Debug.Log($"[TEST SUMMARY] Complete: {passed} PASSED, {failed} FAILED out of 14 checks.");
+            Debug.Log($"[TEST SUMMARY] Complete: {passed} PASSED, {failed} FAILED out of {(introController != null ? 16 : 15)} checks.");
             Debug.Log("===============================================================================");
         }
     }

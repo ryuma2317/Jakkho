@@ -39,12 +39,6 @@ namespace Kannko.Laptop
         [Tooltip("Reference to the EnlargedWifiPanel to restore when browser closes.")]
         [SerializeField] private GameObject m_EnlargedWifiPanel;
 
-        [Tooltip("The World Space FloatingLaptopPanel GameObject to hide upon victory debrief.")]
-        [SerializeField] private GameObject m_FloatingLaptopPanel;
-
-        [Tooltip("Reference to the Scenario 2 Lessons Learned Debrief panel.")]
-        [SerializeField] private GameObject m_LessonLearnedPanel;
-
         [Header("Browser Chrome Navigation Controls")]
         [SerializeField] private Button m_CloseButton;
         [SerializeField] private Button m_BackButton;
@@ -69,6 +63,8 @@ namespace Kannko.Laptop
         [SerializeField] private Button m_ContinueScenarioButton;
         [SerializeField] private Button m_GetOutOfCafeButton;
         [SerializeField] private Scenario2.Scenario2ExitController m_ExitController;
+        [SerializeField] private GameObject m_FloatingLaptopPanel;
+        [SerializeField] private Scenario2.StopPlayingDecisionController m_DecisionController;
 
         [Header("VR Controller Input Actions")]
         [SerializeField] private InputActionProperty m_LeftTriggerAction;
@@ -91,7 +87,9 @@ namespace Kannko.Laptop
         private readonly List<XRRayInteractor> m_ActiveRayInteractors = new List<XRRayInteractor>();
 
         public bool IsBrowserOpen => m_BrowserPanel != null && m_BrowserPanel.activeSelf;
+        public bool IsDecisionOpen => m_StopPlayingDecisionPanel != null && m_StopPlayingDecisionPanel.activeSelf;
         public GameObject BrowserPanel => m_BrowserPanel;
+        public GameObject FloatingLaptopPanel => m_FloatingLaptopPanel;
         public Button GoogleLoginButton => m_GoogleLoginButton;
         public Button FacebookLoginButton => m_FacebookLoginButton;
         public Button CloseButton => m_CloseButton;
@@ -99,6 +97,7 @@ namespace Kannko.Laptop
         public TextMeshProUGUI StatusFeedbackText => m_StatusFeedbackText;
         public CaptivePortalController CaptivePortal => m_CaptivePortalController;
         public GameObject StopPlayingDecisionPanel => m_StopPlayingDecisionPanel;
+        public Scenario2.StopPlayingDecisionController DecisionController => m_DecisionController;
         public Button ContinueScenarioButton => m_ContinueScenarioButton;
         public Button GetOutOfCafeButton => m_GetOutOfCafeButton;
         public Scenario2.Scenario2ExitController ExitController => m_ExitController;
@@ -139,11 +138,9 @@ namespace Kannko.Laptop
 
         private void Update()
         {
-            if (!Application.isPlaying || !IsBrowserOpen) return;
+            if (!Application.isPlaying || (!IsBrowserOpen && !IsDecisionOpen)) return;
 
             HandleVRControllerRayClicks();
-            HandleDesktopMouseClicks();
-            HandleKeyboardShortcuts();
         }
 
         public void FindReferencesIfNull()
@@ -249,15 +246,48 @@ namespace Kannko.Laptop
                 }
             }
 
-            if (m_StopPlayingDecisionPanel == null && transform.parent != null)
+            if (m_FloatingLaptopPanel == null)
             {
-                Transform t = transform.parent.Find("StopPlayingDecisionPanel");
-                if (t == null) t = transform.parent.Find("EnlargedWifiPanel/StopPlayingDecisionPanel");
-                if (t != null) m_StopPlayingDecisionPanel = t.gameObject;
+                var wui = GameObject.Find("WorldUI");
+                if (wui != null)
+                {
+                    var t = wui.transform.Find("FloatingLaptopPanel");
+                    if (t != null) m_FloatingLaptopPanel = t.gameObject;
+                }
+                if (m_FloatingLaptopPanel == null && transform.parent != null && transform.parent.parent != null)
+                {
+                    m_FloatingLaptopPanel = transform.parent.parent.gameObject;
+                }
+            }
+
+            if (m_StopPlayingDecisionPanel == null)
+            {
+                var wui = GameObject.Find("WorldUI");
+                if (wui != null)
+                {
+                    Transform t = wui.transform.Find("StopPlayingDecisionPanel");
+                    if (t != null) m_StopPlayingDecisionPanel = t.gameObject;
+                }
+                if (m_StopPlayingDecisionPanel == null && transform.parent != null)
+                {
+                    Transform t = transform.parent.Find("StopPlayingDecisionPanel");
+                    if (t == null) t = transform.parent.Find("EnlargedWifiPanel/StopPlayingDecisionPanel");
+                    if (t != null) m_StopPlayingDecisionPanel = t.gameObject;
+                }
+                if (m_StopPlayingDecisionPanel == null)
+                {
+                    var go = GameObject.Find("StopPlayingDecisionPanel");
+                    if (go != null) m_StopPlayingDecisionPanel = go;
+                }
             }
 
             if (m_StopPlayingDecisionPanel != null)
             {
+                if (m_DecisionController == null)
+                {
+                    m_DecisionController = m_StopPlayingDecisionPanel.GetComponent<Scenario2.StopPlayingDecisionController>();
+                }
+
                 if (m_ContinueScenarioButton == null)
                 {
                     Transform t = m_StopPlayingDecisionPanel.transform.Find("ActionButtons/ContinueScenarioButton");
@@ -276,36 +306,6 @@ namespace Kannko.Laptop
             if (m_ExitController == null)
             {
                 m_ExitController = UnityEngine.Object.FindFirstObjectByType<Scenario2.Scenario2ExitController>(FindObjectsInactive.Include);
-            }
-
-            if (m_FloatingLaptopPanel == null)
-            {
-                Transform p = transform;
-                while (p != null && p.name != "FloatingLaptopPanel") p = p.parent;
-                if (p != null) m_FloatingLaptopPanel = p.gameObject;
-                if (m_FloatingLaptopPanel == null)
-                {
-                    var wui = GameObject.Find("WorldUI");
-                    if (wui != null)
-                    {
-                        var t = wui.transform.Find("FloatingLaptopPanel");
-                        if (t != null) m_FloatingLaptopPanel = t.gameObject;
-                    }
-                }
-            }
-
-            if (m_LessonLearnedPanel == null)
-            {
-                var wui = GameObject.Find("WorldUI");
-                if (wui != null)
-                {
-                    var t = wui.transform.Find("Scenario2_Lesson_Learned_Panel");
-                    if (t != null) m_LessonLearnedPanel = t.gameObject;
-                }
-                if (m_LessonLearnedPanel == null)
-                {
-                    m_LessonLearnedPanel = GameObject.Find("Scenario2_Lesson_Learned_Panel");
-                }
             }
         }
 
@@ -396,10 +396,7 @@ namespace Kannko.Laptop
         }
 
         /// <summary>
-        /// Closes the browser when the player decides to leave the rogue captive portal.
-        /// Concludes Scenario 2 with VICTORY: The player spotted the Evil Twin trap,
-        /// refused to submit credentials, and left the browser.
-        /// Displays the Incident Debrief & Lessons Learned panel with the success outcome.
+        /// Closes the browser and returns to the previous laptop / network interface.
         /// </summary>
         public void CloseBrowser()
         {
@@ -415,75 +412,68 @@ namespace Kannko.Laptop
                 m_BrowserPanel.SetActive(false);
             }
 
-            if (m_StopPlayingDecisionPanel != null)
+            // Restore the EnlargedWifiPanel flyout
+            if (m_EnlargedWifiPanel != null)
             {
-                m_StopPlayingDecisionPanel.SetActive(false);
-            }
-
-            // Hide the FloatingLaptopPanel so the player's focus is fully on the 3D Lessons Learned Panel
-            if (m_FloatingLaptopPanel != null)
-            {
-                m_FloatingLaptopPanel.SetActive(false);
-            }
-
-            // Present the Scenario 2 Incident Debrief & Lessons Learned Panel
-            if (m_LessonLearnedPanel != null)
-            {
-                m_LessonLearnedPanel.SetActive(true);
-                var ctrl = m_LessonLearnedPanel.GetComponent<Scenario2.Scenario2_LessonLearnedController>();
-                if (ctrl != null)
-                {
-                    ctrl.ShowLesson(0);
-                }
-                Debug.Log("<color=#34D399><b>[Scenario 2]</b> Player closed rogue captive portal browser — VICTORY! Lessons Learned panel presented.</color>");
-            }
-            else
-            {
-                Debug.LogWarning("[JakkoFreeWifiBrowserController] Scenario2_Lesson_Learned_Panel not found! Restoring network list.");
-                if (m_EnlargedWifiPanel != null)
-                {
-                    m_EnlargedWifiPanel.SetActive(true);
-                }
-            }
-
-            // Record score and victory
-            if (ScoreTracker.Instance != null)
-            {
-                ScoreTracker.Instance.RecordOutcome(ScenarioManager.OutcomeType.Success);
-            }
-
-            if (GameManager.Instance != null)
-            {
-                GameManager.Instance.CompleteScenario(200);
+                m_EnlargedWifiPanel.SetActive(true);
             }
 
             OnBrowserClosed?.Invoke();
+            Debug.Log("[JakkoFreeWifiBrowserController] Browser CLOSED. Returned to laptop network interface.");
         }
 
         /// <summary>
         /// Handles the browser navbar BackButton click.
-        /// Player decides to leave the rogue captive portal — triggers VICTORY and presents Lessons Learned.
+        /// Closes the captive portal, restores the network interface (EnlargedWifiPanel),
+        /// and displays the 'STOP PLAYING?' scenario exit decision card on the laptop screen.
         /// </summary>
         public void OnBackButtonClicked()
         {
             if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
             m_LastClickTime = Time.unscaledTime;
 
-            Debug.Log("[JakkoFreeWifiBrowserController] Back button clicked: Player leaving rogue captive portal — VICTORY!");
-            CloseBrowser();
+            Debug.Log("[JakkoFreeWifiBrowserController] Back button clicked: Presenting STOP PLAYING decision.");
+            ShowStopPlayingDecision();
         }
 
         public void ShowStopPlayingDecision()
         {
             FindReferencesIfNull();
 
-            if (m_StopPlayingDecisionPanel != null)
+            // Reset captive portal state if open
+            if (m_CaptivePortalController != null)
             {
-                m_StopPlayingDecisionPanel.SetActive(true);
+                m_CaptivePortalController.ResetToInitialPortal();
             }
 
-            EnsureCollidersAndInteractables();
-            Debug.Log("[JakkoFreeWifiBrowserController] Displayed 'STOP PLAYING?' decision panel on laptop screen.");
+            // Hide the browser panel
+            if (m_BrowserPanel != null)
+            {
+                m_BrowserPanel.SetActive(false);
+            }
+
+            // Hide FloatingLaptopPanel so player focuses on camera-fixed world-space dialog
+            if (m_FloatingLaptopPanel != null)
+            {
+                m_FloatingLaptopPanel.SetActive(false);
+            }
+
+            // Delegate presentation directly to StopPlayingDecisionController
+            if (m_DecisionController != null)
+            {
+                m_DecisionController.ShowDecision();
+            }
+            else if (m_StopPlayingDecisionPanel != null)
+            {
+                m_StopPlayingDecisionPanel.SetActive(true);
+                var dc = m_StopPlayingDecisionPanel.GetComponent<Scenario2.StopPlayingDecisionController>();
+                if (dc != null)
+                {
+                    dc.ShowDecision();
+                }
+            }
+
+            Debug.Log("[JakkoFreeWifiBrowserController] Displayed camera-fixed 'STOP PLAYING?' decision panel.");
         }
 
         public void HideStopPlayingDecision()
@@ -501,6 +491,16 @@ namespace Kannko.Laptop
 
             Debug.Log("[JakkoFreeWifiBrowserController] [ Continue Scenario ] clicked: Resuming laptop Wi-Fi interaction.");
             HideStopPlayingDecision();
+
+            if (m_FloatingLaptopPanel != null)
+            {
+                m_FloatingLaptopPanel.SetActive(true);
+            }
+
+            if (m_EnlargedWifiPanel != null)
+            {
+                m_EnlargedWifiPanel.SetActive(true);
+            }
         }
 
         public void OnGetOutOfCafeClicked()
@@ -508,8 +508,25 @@ namespace Kannko.Laptop
             if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
             m_LastClickTime = Time.unscaledTime;
 
-            Debug.Log("[JakkoFreeWifiBrowserController] [ Get Out of This Cafe ] clicked: Player leaving rogue portal — VICTORY!");
-            CloseBrowser();
+            Debug.Log("[JakkoFreeWifiBrowserController] [ Get Out of This Cafe ] clicked: Transitioning to camera-facing exit confirmation.");
+            HideStopPlayingDecision();
+
+            if (m_ExitController != null)
+            {
+                m_ExitController.ShowExitConfirmation();
+            }
+            else
+            {
+                var exitCtrl = UnityEngine.Object.FindFirstObjectByType<Scenario2.Scenario2ExitController>(FindObjectsInactive.Include);
+                if (exitCtrl != null)
+                {
+                    exitCtrl.ShowExitConfirmation();
+                }
+                else
+                {
+                    Debug.LogWarning("[JakkoFreeWifiBrowserController] Scenario2ExitController not found in scene!");
+                }
+            }
         }
 
         private void OnRefreshClicked()
@@ -578,6 +595,7 @@ namespace Kannko.Laptop
         public void EnsureCollidersAndInteractables()
         {
             FindReferencesIfNull();
+            DisableRaycastTargetsOnContainers();
 
             if (m_CloseButton != null)
             {
@@ -615,6 +633,36 @@ namespace Kannko.Laptop
             }
         }
 
+        private void DisableRaycastTargetsOnContainers()
+        {
+            if (m_BrowserPanel != null)
+            {
+                var bg = m_BrowserPanel.GetComponent<Image>();
+                if (bg != null) bg.raycastTarget = false;
+
+                Transform header = m_BrowserPanel.transform.Find("BrowserHeader");
+                if (header != null)
+                {
+                    var hImg = header.GetComponent<Image>();
+                    if (hImg != null) hImg.raycastTarget = false;
+
+                    Transform nav = header.Find("NavBar");
+                    if (nav != null)
+                    {
+                        var nImg = nav.GetComponent<Image>();
+                        if (nImg != null) nImg.raycastTarget = false;
+                    }
+
+                    Transform tab = header.Find("TabBar");
+                    if (tab != null)
+                    {
+                        var tImg = tab.GetComponent<Image>();
+                        if (tImg != null) tImg.raycastTarget = false;
+                    }
+                }
+            }
+        }
+
         private void SetupElementColliderAndInteractable(GameObject target, Action onClickAction)
         {
             if (target == null) return;
@@ -628,8 +676,12 @@ namespace Kannko.Laptop
             RectTransform rt = target.GetComponent<RectTransform>();
             if (rt != null)
             {
-                col.center = new Vector3(rt.rect.center.x, rt.rect.center.y, 0f);
-                col.size = new Vector3(rt.rect.width, rt.rect.height, 50f);
+                // Ensure generous minimum hitbox in world space for effortless VR and mouse ray hits
+                float colW = Mathf.Max(rt.rect.width, 70f);
+                float colH = Mathf.Max(rt.rect.height, 50f);
+                // Offset center forward (Z = -10f) so it sits in front of the laptop screen collider
+                col.center = new Vector3(rt.rect.center.x, rt.rect.center.y, -10f);
+                col.size = new Vector3(colW, colH, 60f);
             }
             col.enabled = true;
 
@@ -713,6 +765,8 @@ namespace Kannko.Laptop
                 ConfigureRayInteractors();
             }
 
+            m_ActiveRayInteractors.RemoveAll(r => r == null);
+
             for (int i = 0; i < m_ActiveRayInteractors.Count; i++)
             {
                 var ray = m_ActiveRayInteractors[i];
@@ -733,36 +787,6 @@ namespace Kannko.Laptop
                     {
                         return;
                     }
-                }
-            }
-        }
-
-        private void HandleDesktopMouseClicks()
-        {
-            if (UnityEngine.InputSystem.Mouse.current == null ||
-                !UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) return;
-
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            // 1. Mouse cursor raycast
-            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
-            Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
-            if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 10f))
-            {
-                if (EvaluateHitElement(mouseHit.collider.gameObject))
-                {
-                    return;
-                }
-            }
-
-            // 2. Center-screen reticle raycast
-            Ray centerRay = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
-            if (Physics.Raycast(centerRay, out RaycastHit centerHit, 10f))
-            {
-                if (EvaluateHitElement(centerHit.collider.gameObject))
-                {
-                    return;
                 }
             }
         }
@@ -844,26 +868,6 @@ namespace Kannko.Laptop
         {
             if (hitObj == null || target == null) return false;
             return hitObj == target || hitObj.transform.IsChildOf(target.transform);
-        }
-
-        private void HandleKeyboardShortcuts()
-        {
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && kb.escapeKey.wasPressedThisFrame)
-            {
-                CloseBrowser();
-                return;
-            }
-
-            // Quick shortcuts for desktop testing
-            if (kb != null && kb.gKey.wasPressedThisFrame)
-            {
-                OnGoogleLoginClicked();
-            }
-            else if (kb != null && kb.fKey.wasPressedThisFrame)
-            {
-                OnFacebookLoginClicked();
-            }
         }
     }
 }

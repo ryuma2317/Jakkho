@@ -23,20 +23,11 @@ namespace Kannko.Laptop
         [Tooltip("The captive portal phishing simulation panel.")]
         [SerializeField] private GameObject m_CaptivePortalPanel;
 
+        [Tooltip("The intermediate Wi-Fi Connected successfully browser state panel.")]
+        [SerializeField] private GameObject m_WifiConnectedSuccessPanel;
+
         [Tooltip("The dramatic attack reveal warning panel.")]
         [SerializeField] private GameObject m_AttackRevealPanel;
-
-        [Tooltip("The attacker dashboard terminal simulation panel.")]
-        [SerializeField] private GameObject m_AttackerDashboardPanel;
-
-        [Tooltip("The comprehensive attack summary panel.")]
-        [SerializeField] private GameObject m_AttackSummaryPanel;
-
-        [Tooltip("The educational rewind panel explaining the 6 warning signs.")]
-        [SerializeField] private GameObject m_EducationalRewindPanel;
-
-        [Tooltip("Controller for the Educational Rewind 6-scene interactive progression.")]
-        [SerializeField] private EducationalRewindController m_EducationalRewindController;
 
         [Tooltip("Detailed educational explanation card inside AttackRevealPanel.")]
         [SerializeField] private GameObject m_AttackerLogCard;
@@ -65,7 +56,6 @@ namespace Kannko.Laptop
         [SerializeField] private TextMeshProUGUI m_ProviderNoticeText;
 
         [Header("Attack Reveal Controls")]
-        [SerializeField] private Button m_SeeWhatHappenedButton;
         [SerializeField] private Button m_ReturnToLaptopButton;
         [SerializeField] private Button m_CloseRevealButton;
         [SerializeField] private TextMeshProUGUI m_WarningTitleText;
@@ -73,42 +63,27 @@ namespace Kannko.Laptop
         [SerializeField] private TextMeshProUGUI m_ExplanationBodyText;
         [SerializeField] private TextMeshProUGUI m_AttackerSummaryText;
 
-        [Header("Attacker Dashboard Controls")]
-        [SerializeField] private GameObject[] m_EventFeedItems;
-        [SerializeField] private Button m_ViewAttackSummaryButton;
-        [SerializeField] private TextMeshProUGUI m_VictimTimeText;
-
-        [Header("Attack Summary Controls")]
-        [SerializeField] private Button m_LearnHowToDetectButton;
-
-        [Header("Educational Rewind Controls")]
-        [SerializeField] private Button m_FinishReturnButton;
-        [SerializeField] private Button m_ReplaySimulationButton;
-
         [Header("Settings & Timings")]
         [SerializeField] private float m_AuthDuration = 1.5f;
         [SerializeField] private float m_SuccessDisplayDuration = 2.0f;
-        [SerializeField] private float m_EventFeedInterval = 0.8f;
         [SerializeField] private float m_ClickDebounceTime = 0.25f;
 
         // Constants
         private const string FICTIONAL_PORTAL_URL = "https://coffeeshop-free-login.example";
+        private const string WIFI_CONNECTED_URL = "https://wifi.jakkocoffee.com/connected";
         private const string ATTACK_ALERT_URL = "alert://security-warning.simulation/evil-twin-intercept";
-        private const string ATTACKER_DASHBOARD_URL = "terminal://attacker-c2.simulation/dashboard";
-        private const string ATTACK_SUMMARY_URL = "terminal://attacker-c2.simulation/summary";
-        private const string EDU_REWIND_URL = "edu://security-awareness.training/attack-rewind";
         private const string DEFAULT_PORTAL_URL = "https://jakko-coffee.wifi/login";
         private const string DEMO_EMAIL = "demo@example.test";
         private const string DEMO_PASSWORD = "demo-password";
 
         private Coroutine m_AuthCoroutine;
-        private Coroutine m_EventFeedCoroutine;
         private float m_LastClickTime;
         private JakkoFreeWifiBrowserController m_BrowserController;
 
         public bool IsSimulatingAuth { get; private set; }
         public bool IsRevealPresentationActive { get; private set; }
         public GameObject FloatingLaptopPanel => m_FloatingLaptopPanel;
+        public GameObject WifiConnectedSuccessPanel => m_WifiConnectedSuccessPanel;
 
         private void Awake()
         {
@@ -135,36 +110,11 @@ namespace Kannko.Laptop
                 StopCoroutine(m_AuthCoroutine);
                 m_AuthCoroutine = null;
             }
-            if (m_EventFeedCoroutine != null)
-            {
-                StopCoroutine(m_EventFeedCoroutine);
-                m_EventFeedCoroutine = null;
-            }
             IsSimulatingAuth = false;
         }
 
         private void Update()
         {
-            if (!Application.isPlaying) return;
-
-            // When the external World Space Canvas is active, ensure desktop mouse clicks can raycast to its buttons
-            if (m_RevealWorldSpaceCanvas != null && m_RevealWorldSpaceCanvas.activeInHierarchy)
-            {
-                if (UnityEngine.InputSystem.Mouse.current != null &&
-                    UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame)
-                {
-                    Camera cam = Camera.main;
-                    if (cam != null)
-                    {
-                        Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
-                        Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
-                        if (Physics.Raycast(mouseRay, out RaycastHit hit, 10f))
-                        {
-                            DispatchHit(hit.collider.gameObject);
-                        }
-                    }
-                }
-            }
         }
 
         public void FindReferencesIfNull()
@@ -213,21 +163,12 @@ namespace Kannko.Laptop
                 }
             }
 
-            // Check external World Space Canvas first for the reveal sequence panels
+            // Check external World Space Canvas first for the reveal sequence panel
             Transform externalRoot = m_RevealWorldSpaceCanvas != null ? m_RevealWorldSpaceCanvas.transform : null;
             if (externalRoot != null)
             {
                 Transform tReveal = externalRoot.Find("AttackRevealPanel");
                 if (tReveal != null) m_AttackRevealPanel = tReveal.gameObject;
-
-                Transform tDash = externalRoot.Find("AttackerDashboardPanel");
-                if (tDash != null) m_AttackerDashboardPanel = tDash.gameObject;
-
-                Transform tSumm = externalRoot.Find("AttackSummaryPanel");
-                if (tSumm != null) m_AttackSummaryPanel = tSumm.gameObject;
-
-                Transform tEdu = externalRoot.Find("EducationalRewindPanel");
-                if (tEdu != null) m_EducationalRewindPanel = tEdu.gameObject;
             }
 
             Transform pageContent = transform.Find("PageContent");
@@ -250,28 +191,21 @@ namespace Kannko.Laptop
                     if (t != null) m_CaptivePortalPanel = t.gameObject;
                 }
 
+                if (m_WifiConnectedSuccessPanel == null)
+                {
+                    Transform t = pageContent.Find("WifiConnectedSuccessPanel");
+                    if (t != null) m_WifiConnectedSuccessPanel = t.gameObject;
+                }
+
+                if (m_WifiConnectedSuccessPanel == null)
+                {
+                    EnsureWifiConnectedSuccessPanel(pageContent);
+                }
+
                 if (m_AttackRevealPanel == null)
                 {
                     Transform t = pageContent.Find("AttackRevealPanel");
                     if (t != null) m_AttackRevealPanel = t.gameObject;
-                }
-
-                if (m_AttackerDashboardPanel == null)
-                {
-                    Transform t = pageContent.Find("AttackerDashboardPanel");
-                    if (t != null) m_AttackerDashboardPanel = t.gameObject;
-                }
-
-                if (m_AttackSummaryPanel == null)
-                {
-                    Transform t = pageContent.Find("AttackSummaryPanel");
-                    if (t != null) m_AttackSummaryPanel = t.gameObject;
-                }
-
-                if (m_EducationalRewindPanel == null)
-                {
-                    Transform t = pageContent.Find("EducationalRewindPanel");
-                    if (t != null) m_EducationalRewindPanel = t.gameObject;
                 }
             }
 
@@ -337,13 +271,6 @@ namespace Kannko.Laptop
             // Attack Reveal panel child controls
             if (m_AttackRevealPanel != null)
             {
-                if (m_SeeWhatHappenedButton == null || !m_SeeWhatHappenedButton.transform.IsChildOf(m_AttackRevealPanel.transform))
-                {
-                    var btn = m_AttackRevealPanel.transform.Find("ActionButtons/SeeWhatHappenedButton");
-                    if (btn == null) btn = m_AttackRevealPanel.transform.Find("SeeWhatHappenedButton");
-                    if (btn != null) m_SeeWhatHappenedButton = btn.GetComponent<Button>();
-                }
-
                 if (m_ReturnToLaptopButton == null || !m_ReturnToLaptopButton.transform.IsChildOf(m_AttackRevealPanel.transform))
                 {
                     var btn = m_AttackRevealPanel.transform.Find("ActionButtons/ReturnToLaptopButton");
@@ -388,68 +315,6 @@ namespace Kannko.Laptop
                     if (txt != null) m_AttackerSummaryText = txt.GetComponent<TextMeshProUGUI>();
                 }
             }
-
-            // Attacker Dashboard panel child controls
-            if (m_AttackerDashboardPanel != null)
-            {
-                if (m_ViewAttackSummaryButton == null)
-                {
-                    var btn = m_AttackerDashboardPanel.transform.Find("ViewAttackSummaryButton");
-                    if (btn != null) m_ViewAttackSummaryButton = btn.GetComponent<Button>();
-                }
-
-                if (m_VictimTimeText == null)
-                {
-                    var txt = m_AttackerDashboardPanel.transform.Find("SimulatedVictimCard/TimeRow/Value");
-                    if (txt != null) m_VictimTimeText = txt.GetComponent<TextMeshProUGUI>();
-                }
-
-                Transform eventContainer = m_AttackerDashboardPanel.transform.Find("EventFeedCard/EventList");
-                if (eventContainer != null && (m_EventFeedItems == null || m_EventFeedItems.Length == 0))
-                {
-                    var list = new List<GameObject>();
-                    for (int i = 0; i < eventContainer.childCount; i++)
-                    {
-                        list.Add(eventContainer.GetChild(i).gameObject);
-                    }
-                    m_EventFeedItems = list.ToArray();
-                }
-            }
-
-            // Attack Summary panel child controls
-            if (m_AttackSummaryPanel != null)
-            {
-                if (m_LearnHowToDetectButton == null)
-                {
-                    var btn = m_AttackSummaryPanel.transform.Find("LearnHowToDetectButton");
-                    if (btn != null) m_LearnHowToDetectButton = btn.GetComponent<Button>();
-                }
-            }
-
-            // Educational Rewind panel child controls
-            if (m_EducationalRewindPanel != null)
-            {
-                if (m_EducationalRewindController == null)
-                {
-                    m_EducationalRewindController = m_EducationalRewindPanel.GetComponent<EducationalRewindController>();
-                }
-
-                if (m_FinishReturnButton == null)
-                {
-                    var btn = m_EducationalRewindPanel.transform.Find("Scene12_FinalComparison/FinalActionButtons/FinishReturnButton");
-                    if (btn == null) btn = m_EducationalRewindPanel.transform.Find("ActionButtons/FinishReturnButton");
-                    if (btn == null) btn = m_EducationalRewindPanel.transform.Find("FinishReturnButton");
-                    if (btn != null) m_FinishReturnButton = btn.GetComponent<Button>();
-                }
-
-                if (m_ReplaySimulationButton == null)
-                {
-                    var btn = m_EducationalRewindPanel.transform.Find("Scene12_FinalComparison/FinalActionButtons/ReplaySimulationButton");
-                    if (btn == null) btn = m_EducationalRewindPanel.transform.Find("ActionButtons/ReplaySimulationButton");
-                    if (btn == null) btn = m_EducationalRewindPanel.transform.Find("ReplaySimulationButton");
-                    if (btn != null) m_ReplaySimulationButton = btn.GetComponent<Button>();
-                }
-            }
         }
 
         public void SetupButtonListeners()
@@ -466,12 +331,6 @@ namespace Kannko.Laptop
                 m_FillDemoButton.onClick.AddListener(OnFillDemoClicked);
             }
 
-            if (m_SeeWhatHappenedButton != null)
-            {
-                m_SeeWhatHappenedButton.onClick.RemoveListener(OnSeeWhatHappenedClicked);
-                m_SeeWhatHappenedButton.onClick.AddListener(OnSeeWhatHappenedClicked);
-            }
-
             if (m_ReturnToLaptopButton != null)
             {
                 m_ReturnToLaptopButton.onClick.RemoveListener(OnReturnToLaptopClicked);
@@ -483,43 +342,14 @@ namespace Kannko.Laptop
                 m_CloseRevealButton.onClick.RemoveListener(OnReturnToLaptopClicked);
                 m_CloseRevealButton.onClick.AddListener(OnReturnToLaptopClicked);
             }
-
-            if (m_ViewAttackSummaryButton != null)
-            {
-                m_ViewAttackSummaryButton.onClick.RemoveListener(ShowAttackSummary);
-                m_ViewAttackSummaryButton.onClick.AddListener(ShowAttackSummary);
-            }
-
-            if (m_LearnHowToDetectButton != null)
-            {
-                m_LearnHowToDetectButton.onClick.RemoveListener(ShowEducationalRewind);
-                m_LearnHowToDetectButton.onClick.AddListener(ShowEducationalRewind);
-            }
-
-            if (m_FinishReturnButton != null)
-            {
-                m_FinishReturnButton.onClick.RemoveListener(OnReturnToLaptopClicked);
-                m_FinishReturnButton.onClick.AddListener(OnReturnToLaptopClicked);
-            }
-
-            if (m_ReplaySimulationButton != null)
-            {
-                m_ReplaySimulationButton.onClick.RemoveListener(ResetToInitialPortal);
-                m_ReplaySimulationButton.onClick.AddListener(ResetToInitialPortal);
-            }
         }
 
         public void RemoveButtonListeners()
         {
             if (m_ConnectButton != null) m_ConnectButton.onClick.RemoveListener(OnConnectClicked);
             if (m_FillDemoButton != null) m_FillDemoButton.onClick.RemoveListener(OnFillDemoClicked);
-            if (m_SeeWhatHappenedButton != null) m_SeeWhatHappenedButton.onClick.RemoveListener(OnSeeWhatHappenedClicked);
             if (m_ReturnToLaptopButton != null) m_ReturnToLaptopButton.onClick.RemoveListener(OnReturnToLaptopClicked);
             if (m_CloseRevealButton != null) m_CloseRevealButton.onClick.RemoveListener(OnReturnToLaptopClicked);
-            if (m_ViewAttackSummaryButton != null) m_ViewAttackSummaryButton.onClick.RemoveListener(ShowAttackSummary);
-            if (m_LearnHowToDetectButton != null) m_LearnHowToDetectButton.onClick.RemoveListener(ShowEducationalRewind);
-            if (m_FinishReturnButton != null) m_FinishReturnButton.onClick.RemoveListener(OnReturnToLaptopClicked);
-            if (m_ReplaySimulationButton != null) m_ReplaySimulationButton.onClick.RemoveListener(ResetToInitialPortal);
         }
 
         /// <summary>
@@ -533,9 +363,7 @@ namespace Kannko.Laptop
             if (m_InitialPortalCard != null) m_InitialPortalCard.SetActive(false);
             if (m_RevealWorldSpaceCanvas != null) m_RevealWorldSpaceCanvas.SetActive(false);
             if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(false);
-            if (m_AttackerDashboardPanel != null) m_AttackerDashboardPanel.SetActive(false);
-            if (m_AttackSummaryPanel != null) m_AttackSummaryPanel.SetActive(false);
-            if (m_EducationalRewindPanel != null) m_EducationalRewindPanel.SetActive(false);
+            if (m_WifiConnectedSuccessPanel != null) m_WifiConnectedSuccessPanel.SetActive(false);
             if (m_CaptivePortalPanel != null) m_CaptivePortalPanel.SetActive(true);
 
             // Update browser chrome
@@ -632,19 +460,45 @@ namespace Kannko.Laptop
             Debug.Log("[CaptivePortalController] Starting authentication simulation...");
             yield return new WaitForSeconds(m_AuthDuration);
 
-            if (m_PortalStatusText != null)
-            {
-                m_PortalStatusText.text =
-                    "<color=#4CD964><b>✓ Authentication successful</b></color>\n" +
-                    "<color=#FFFFFF>Welcome to Jakko-Cooffee Wi-Fi.</color>\n" +
-                    "<size=85%><color=#8E8E93>Internet access is now available.</color></size>";
-            }
+            // Transition from CaptivePortalPanel to the dedicated Wi-Fi Connected Success page
+            ShowWifiConnectedSuccess();
 
-            Debug.Log("[CaptivePortalController] Authentication succeeded. Showing brief confirmation before attack reveal...");
+            Debug.Log("[CaptivePortalController] Wi-Fi connection succeeded. Showing confirmation page before attack reveal...");
             yield return new WaitForSeconds(m_SuccessDisplayDuration);
 
             IsSimulatingAuth = false;
             ShowAttackReveal();
+        }
+
+        /// <summary>
+        /// Displays the dedicated "Wi-Fi Connected Successfully" browser page/state.
+        /// Shown immediately after CONNECT authentication succeeds, before the Attack Reveal Warning.
+        /// </summary>
+        public void ShowWifiConnectedSuccess()
+        {
+            FindReferencesIfNull();
+
+            if (m_CaptivePortalPanel != null) m_CaptivePortalPanel.SetActive(false);
+            if (m_InitialPortalCard != null) m_InitialPortalCard.SetActive(false);
+            if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(false);
+
+            if (m_WifiConnectedSuccessPanel != null)
+            {
+                m_WifiConnectedSuccessPanel.SetActive(true);
+            }
+
+            // Update browser chrome
+            if (m_UrlText != null)
+            {
+                m_UrlText.text = WIFI_CONNECTED_URL;
+            }
+
+            if (m_TabTitleText != null)
+            {
+                m_TabTitleText.text = "Wi-Fi Connected";
+            }
+
+            Debug.Log($"[CaptivePortalController] Displayed 'Wi-Fi Connected Successfully' browser page ({WIFI_CONNECTED_URL}).");
         }
 
         /// <summary>
@@ -655,6 +509,11 @@ namespace Kannko.Laptop
             FindReferencesIfNull();
 
             IsRevealPresentationActive = true;
+
+            if (m_WifiConnectedSuccessPanel != null)
+            {
+                m_WifiConnectedSuccessPanel.SetActive(false);
+            }
 
             // Reveal moves outside to the external World Space Canvas!
             // Hide the laptop visual presentation so the player sees ONLY the Reveal World Space presentation.
@@ -674,9 +533,6 @@ namespace Kannko.Laptop
 
             // Laptop browser keeps m_CaptivePortalPanel visible so physical context is preserved
             if (m_InitialPortalCard != null) m_InitialPortalCard.SetActive(false);
-            if (m_AttackerDashboardPanel != null) m_AttackerDashboardPanel.SetActive(false);
-            if (m_AttackSummaryPanel != null) m_AttackSummaryPanel.SetActive(false);
-            if (m_EducationalRewindPanel != null) m_EducationalRewindPanel.SetActive(false);
             if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(true);
 
             if (m_AttackerLogCard != null)
@@ -691,178 +547,38 @@ namespace Kannko.Laptop
 
             if (m_TabTitleText != null)
             {
-                m_TabTitleText.text = "⚠ Security Warning - Fake AP";
+                m_TabTitleText.text = "Security Warning - Fake AP";
             }
 
+            // Keep scene / Edit Mode text intact so objects look identical in Play Mode as in Edit Mode
             if (m_WarningTitleText != null)
             {
-                m_WarningTitleText.text = "⚠ WARNING";
+                if (string.IsNullOrEmpty(m_WarningTitleText.text))
+                {
+                    m_WarningTitleText.text = "WARNING";
+                }
+                else if (m_WarningTitleText.text.Contains("⚠"))
+                {
+                    m_WarningTitleText.text = m_WarningTitleText.text.Replace("⚠", "").TrimStart();
+                }
             }
 
-            if (m_TrappedHeadlineText != null)
+            if (m_TrappedHeadlineText != null && string.IsNullOrEmpty(m_TrappedHeadlineText.text))
             {
                 m_TrappedHeadlineText.text = "<color=#FF3B30>YOU WERE TRAPPED</color>";
             }
 
-            if (m_ExplanationBodyText != null)
+            if (m_ExplanationBodyText != null && string.IsNullOrEmpty(m_ExplanationBodyText.text))
             {
                 m_ExplanationBodyText.text =
                     "<b>This was NOT the legitimate Jakko-Cooffee Wi-Fi.</b>\n\n" +
                     "You connected to a <b>simulated fake access point</b>.\n" +
-                    "The information you entered was submitted to the <b>simulated attacker dashboard</b>.\n\n" +
-                    "<size=80%><color=#8E8E93><i>Because this is an educational simulation, the attacker dashboard is only an in-game representation. No real credentials were transmitted or stored.</i></color></size>";
-            }
-
-            if (m_SeeWhatHappenedButton != null)
-            {
-                m_SeeWhatHappenedButton.gameObject.SetActive(true);
-                m_SeeWhatHappenedButton.interactable = true;
+                    "The information you entered was intercepted.\n\n" +
+                    "<size=80%><color=#8E8E93><i>Because this is an educational simulation, no real credentials were transmitted or stored.</i></color></size>";
             }
 
             EnsureCollidersAndInteractables();
             Debug.Log("[CaptivePortalController] Attack Reveal Panel displayed: YOU WERE TRAPPED!");
-        }
-
-        /// <summary>
-        /// Transitions from AttackRevealPanel into the Attacker Dashboard view.
-        /// Invoked when clicking [ See What Happened ].
-        /// </summary>
-        public void OnSeeWhatHappenedClicked()
-        {
-            if (Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
-            m_LastClickTime = Time.unscaledTime;
-
-            ShowAttackerDashboard();
-        }
-
-        /// <summary>
-        /// Displays the Attacker Dashboard with animated sequential live event feed.
-        /// </summary>
-        public void ShowAttackerDashboard()
-        {
-            FindReferencesIfNull();
-
-            if (m_RevealWorldSpaceCanvas != null) m_RevealWorldSpaceCanvas.SetActive(true);
-            if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(false);
-            if (m_AttackSummaryPanel != null) m_AttackSummaryPanel.SetActive(false);
-            if (m_EducationalRewindPanel != null) m_EducationalRewindPanel.SetActive(false);
-            if (m_InitialPortalCard != null) m_InitialPortalCard.SetActive(false);
-
-            if (m_AttackerDashboardPanel != null)
-            {
-                m_AttackerDashboardPanel.SetActive(true);
-            }
-
-            if (m_UrlText != null) m_UrlText.text = ATTACKER_DASHBOARD_URL;
-            if (m_TabTitleText != null) m_TabTitleText.text = "Attacker Dashboard (Simulation)";
-
-            if (m_VictimTimeText != null)
-            {
-                m_VictimTimeText.text = DateTime.Now.ToString("HH:mm:ss") + " (Just now)";
-            }
-
-            if (m_EventFeedCoroutine != null) StopCoroutine(m_EventFeedCoroutine);
-            m_EventFeedCoroutine = StartCoroutine(PlayEventFeedSequence());
-
-            EnsureCollidersAndInteractables();
-            Debug.Log("[CaptivePortalController] Transitioned to ATTACKER DASHBOARD.");
-        }
-
-        private IEnumerator PlayEventFeedSequence()
-        {
-            if (m_ViewAttackSummaryButton != null)
-            {
-                m_ViewAttackSummaryButton.interactable = false;
-            }
-
-            if (m_EventFeedItems != null && m_EventFeedItems.Length > 0)
-            {
-                // Hide all events initially
-                for (int i = 0; i < m_EventFeedItems.Length; i++)
-                {
-                    if (m_EventFeedItems[i] != null)
-                    {
-                        m_EventFeedItems[i].SetActive(false);
-                    }
-                }
-
-                // Reveal events sequentially with the planned 0.8s interval
-                for (int i = 0; i < m_EventFeedItems.Length; i++)
-                {
-                    yield return new WaitForSeconds(m_EventFeedInterval);
-
-                    if (m_EventFeedItems[i] != null)
-                    {
-                        m_EventFeedItems[i].SetActive(true);
-                    }
-                }
-            }
-            else
-            {
-                yield return new WaitForSeconds(1.0f);
-            }
-
-            if (m_ViewAttackSummaryButton != null)
-            {
-                m_ViewAttackSummaryButton.interactable = true;
-            }
-
-            EnsureCollidersAndInteractables();
-            Debug.Log("[CaptivePortalController] Live Event Feed animation completed. [ View Attack Summary ] enabled.");
-        }
-
-        /// <summary>
-        /// Displays the Attack Summary panel with network details, masked demo data, and educational explanation.
-        /// Invoked when clicking [ View Attack Summary ].
-        /// </summary>
-        public void ShowAttackSummary()
-        {
-            FindReferencesIfNull();
-
-            if (m_RevealWorldSpaceCanvas != null) m_RevealWorldSpaceCanvas.SetActive(true);
-            if (m_AttackerDashboardPanel != null) m_AttackerDashboardPanel.SetActive(false);
-            if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(false);
-            if (m_EducationalRewindPanel != null) m_EducationalRewindPanel.SetActive(false);
-
-            if (m_AttackSummaryPanel != null)
-            {
-                m_AttackSummaryPanel.SetActive(true);
-            }
-
-            if (m_UrlText != null) m_UrlText.text = ATTACK_SUMMARY_URL;
-            if (m_TabTitleText != null) m_TabTitleText.text = "Attack Summary & Analysis";
-
-            EnsureCollidersAndInteractables();
-            Debug.Log("[CaptivePortalController] Displayed ATTACK SUMMARY panel.");
-        }
-
-        /// <summary>
-        /// Displays the Educational Rewind panel walking through the 6 key warning signs.
-        /// Invoked when clicking [ Learn How You Could Have Detected This ].
-        /// </summary>
-        public void ShowEducationalRewind()
-        {
-            FindReferencesIfNull();
-
-            if (m_RevealWorldSpaceCanvas != null) m_RevealWorldSpaceCanvas.SetActive(true);
-            if (m_AttackSummaryPanel != null) m_AttackSummaryPanel.SetActive(false);
-            if (m_AttackerDashboardPanel != null) m_AttackerDashboardPanel.SetActive(false);
-            if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(false);
-
-            if (m_EducationalRewindPanel != null)
-            {
-                m_EducationalRewindPanel.SetActive(true);
-                if (m_EducationalRewindController != null)
-                {
-                    m_EducationalRewindController.StartRewindSequence();
-                }
-            }
-
-            if (m_UrlText != null) m_UrlText.text = EDU_REWIND_URL;
-            if (m_TabTitleText != null) m_TabTitleText.text = "Security Awareness - Attack Rewind";
-
-            EnsureCollidersAndInteractables();
-            Debug.Log("[CaptivePortalController] Displayed EDUCATIONAL REWIND panel.");
         }
 
         /// <summary>
@@ -908,29 +624,19 @@ namespace Kannko.Laptop
                 StopCoroutine(m_AuthCoroutine);
                 m_AuthCoroutine = null;
             }
-            if (m_EventFeedCoroutine != null)
-            {
-                StopCoroutine(m_EventFeedCoroutine);
-                m_EventFeedCoroutine = null;
-            }
             IsSimulatingAuth = false;
 
             if (m_RevealWorldSpaceCanvas != null) m_RevealWorldSpaceCanvas.SetActive(false);
+            if (m_WifiConnectedSuccessPanel != null) m_WifiConnectedSuccessPanel.SetActive(false);
             if (m_CaptivePortalPanel != null) m_CaptivePortalPanel.SetActive(false);
             if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(false);
             if (m_AttackerLogCard != null) m_AttackerLogCard.SetActive(false);
-            if (m_AttackerDashboardPanel != null) m_AttackerDashboardPanel.SetActive(false);
-            if (m_AttackSummaryPanel != null) m_AttackSummaryPanel.SetActive(false);
-            if (m_EducationalRewindPanel != null) m_EducationalRewindPanel.SetActive(false);
             if (m_InitialPortalCard != null) m_InitialPortalCard.SetActive(true);
 
             if (m_UrlText != null) m_UrlText.text = DEFAULT_PORTAL_URL;
             if (m_TabTitleText != null) m_TabTitleText.text = "Jakko Coffee - Free Wi-Fi Portal";
 
             if (m_ConnectButton != null) m_ConnectButton.interactable = true;
-            if (m_SeeWhatHappenedButton != null) m_SeeWhatHappenedButton.interactable = true;
-            if (m_ViewAttackSummaryButton != null) m_ViewAttackSummaryButton.interactable = true;
-            if (m_LearnHowToDetectButton != null) m_LearnHowToDetectButton.interactable = true;
         }
 
         /// <summary>
@@ -950,11 +656,6 @@ namespace Kannko.Laptop
                 SetupElementColliderAndInteractable(m_FillDemoButton.gameObject, OnFillDemoClicked);
             }
 
-            if (m_SeeWhatHappenedButton != null)
-            {
-                SetupElementColliderAndInteractable(m_SeeWhatHappenedButton.gameObject, OnSeeWhatHappenedClicked);
-            }
-
             if (m_ReturnToLaptopButton != null)
             {
                 SetupElementColliderAndInteractable(m_ReturnToLaptopButton.gameObject, OnReturnToLaptopClicked);
@@ -963,26 +664,6 @@ namespace Kannko.Laptop
             if (m_CloseRevealButton != null)
             {
                 SetupElementColliderAndInteractable(m_CloseRevealButton.gameObject, OnReturnToLaptopClicked);
-            }
-
-            if (m_ViewAttackSummaryButton != null)
-            {
-                SetupElementColliderAndInteractable(m_ViewAttackSummaryButton.gameObject, ShowAttackSummary);
-            }
-
-            if (m_LearnHowToDetectButton != null)
-            {
-                SetupElementColliderAndInteractable(m_LearnHowToDetectButton.gameObject, ShowEducationalRewind);
-            }
-
-            if (m_FinishReturnButton != null)
-            {
-                SetupElementColliderAndInteractable(m_FinishReturnButton.gameObject, OnReturnToLaptopClicked);
-            }
-
-            if (m_ReplaySimulationButton != null)
-            {
-                SetupElementColliderAndInteractable(m_ReplaySimulationButton.gameObject, ResetToInitialPortal);
             }
         }
 
@@ -1027,7 +708,7 @@ namespace Kannko.Laptop
         {
             if (hitObj == null) return false;
 
-            if (Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return false;
+            if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return false;
 
             if (IsHitOnTarget(hitObj, m_ConnectButton?.gameObject))
             {
@@ -1043,56 +724,12 @@ namespace Kannko.Laptop
                 return true;
             }
 
-            if (IsHitOnTarget(hitObj, m_SeeWhatHappenedButton?.gameObject))
-            {
-                m_LastClickTime = Time.unscaledTime;
-                OnSeeWhatHappenedClicked();
-                return true;
-            }
-
             if (IsHitOnTarget(hitObj, m_ReturnToLaptopButton?.gameObject) ||
                 IsHitOnTarget(hitObj, m_CloseRevealButton?.gameObject))
             {
                 m_LastClickTime = Time.unscaledTime;
                 OnReturnToLaptopClicked();
                 return true;
-            }
-
-            if (IsHitOnTarget(hitObj, m_ViewAttackSummaryButton?.gameObject))
-            {
-                m_LastClickTime = Time.unscaledTime;
-                ShowAttackSummary();
-                return true;
-            }
-
-            if (IsHitOnTarget(hitObj, m_LearnHowToDetectButton?.gameObject))
-            {
-                m_LastClickTime = Time.unscaledTime;
-                ShowEducationalRewind();
-                return true;
-            }
-
-            if (IsHitOnTarget(hitObj, m_FinishReturnButton?.gameObject))
-            {
-                m_LastClickTime = Time.unscaledTime;
-                OnReturnToLaptopClicked();
-                return true;
-            }
-
-            if (IsHitOnTarget(hitObj, m_ReplaySimulationButton?.gameObject))
-            {
-                m_LastClickTime = Time.unscaledTime;
-                ResetToInitialPortal();
-                return true;
-            }
-
-            if (m_EducationalRewindPanel != null && (m_EducationalRewindPanel.activeSelf || m_EducationalRewindPanel.activeInHierarchy) && m_EducationalRewindController != null)
-            {
-                if (m_EducationalRewindController.DispatchHit(hitObj))
-                {
-                    m_LastClickTime = Time.unscaledTime;
-                    return true;
-                }
             }
 
             return false;
@@ -1102,6 +739,112 @@ namespace Kannko.Laptop
         {
             if (hitObj == null || target == null) return false;
             return hitObj == target || hitObj.transform.IsChildOf(target.transform);
+        }
+
+        private void EnsureWifiConnectedSuccessPanel(Transform pageContent)
+        {
+            if (m_WifiConnectedSuccessPanel != null || pageContent == null) return;
+
+            Transform existing = pageContent.Find("WifiConnectedSuccessPanel");
+            if (existing != null)
+            {
+                m_WifiConnectedSuccessPanel = existing.gameObject;
+                return;
+            }
+
+            var panelGo = new GameObject("WifiConnectedSuccessPanel", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            panelGo.transform.SetParent(pageContent, false);
+            var rt = panelGo.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = new Vector2(0f, 49f);
+            rt.sizeDelta = new Vector2(800f, 780f);
+            rt.localScale = Vector3.one;
+
+            var img = panelGo.GetComponent<Image>();
+            if (m_CaptivePortalPanel != null)
+            {
+                var cpImg = m_CaptivePortalPanel.GetComponent<Image>();
+                if (cpImg != null)
+                {
+                    img.sprite = cpImg.sprite;
+                    img.type = cpImg.type;
+                    img.color = cpImg.color;
+                }
+            }
+            else
+            {
+                img.color = new Color(0.14f, 0.13f, 0.13f, 0.96f);
+            }
+
+            TMP_FontAsset font = null;
+            if (m_PortalStatusText != null) font = m_PortalStatusText.font;
+
+            // 1. Header Section Pill
+            CreateLabelElement("HeaderSection", panelGo.transform, new Vector2(0f, 315f), new Vector2(700f, 42f),
+                "<color=#8E8E93><b>WI-FI CONNECTION STATUS</b></color>", 16, TextAlignmentOptions.Center, font);
+
+            // 2. Big Green Checkmark
+            CreateLabelElement("SuccessIcon", panelGo.transform, new Vector2(0f, 225f), new Vector2(160f, 80f),
+                "<color=#34C759><b>✓</b></color>", 68, TextAlignmentOptions.Center, font);
+
+            // 3. Main Title
+            CreateLabelElement("TitleText", panelGo.transform, new Vector2(0f, 150f), new Vector2(700f, 48f),
+                "<b>Wi-Fi Connected</b>", 30, TextAlignmentOptions.Center, font);
+
+            // 4. Success Badge Pill
+            CreateLabelElement("SuccessBadge", panelGo.transform, new Vector2(0f, 92f), new Vector2(400f, 44f),
+                "<color=#34C759><b>✓ Connected successfully</b></color>", 20, TextAlignmentOptions.Center, font);
+
+            // 5. Subtitle
+            CreateLabelElement("SubtitleText", panelGo.transform, new Vector2(0f, 38f), new Vector2(700f, 36f),
+                "<color=#D1D1D6>Your device is now connected to Wi-Fi.</color>", 18, TextAlignmentOptions.Center, font);
+
+            // 6. Network Details Card
+            var detailsGo = new GameObject("DetailsCard", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            detailsGo.transform.SetParent(panelGo.transform, false);
+            var detRt = detailsGo.GetComponent<RectTransform>();
+            detRt.anchorMin = new Vector2(0.5f, 0.5f);
+            detRt.anchorMax = new Vector2(0.5f, 0.5f);
+            detRt.anchoredPosition = new Vector2(0f, -100f);
+            detRt.sizeDelta = new Vector2(700f, 200f);
+            var detImg = detailsGo.GetComponent<Image>();
+            detImg.color = new Color(0.18f, 0.18f, 0.22f, 0.95f);
+
+            CreateLabelElement("NetworkInfo", detailsGo.transform, new Vector2(0f, 0f), new Vector2(640f, 170f),
+                "<b>Network:</b>  Jakko-cooffee_free\n" +
+                "<b>Security:</b>  Captive Portal Authentication\n" +
+                "<b>IP Address:</b>  192.168.1.142\n" +
+                "<b>Status:</b>  <color=#34C759>Active (Internet Access)</color>",
+                16, TextAlignmentOptions.Left, font);
+
+            // 7. Notice Text
+            CreateLabelElement("NoticeText", panelGo.transform, new Vector2(0f, -250f), new Vector2(700f, 32f),
+                "<size=15><color=#8E8E93>You have full access to the internet through this hotspot.</color></size>",
+                15, TextAlignmentOptions.Center, font);
+
+            panelGo.SetActive(false);
+            m_WifiConnectedSuccessPanel = panelGo;
+        }
+
+        private static GameObject CreateLabelElement(string name, Transform parent, Vector2 pos, Vector2 size, string text, float fontSize, TextAlignmentOptions align, TMP_FontAsset font)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = new Vector2(0.5f, 0.5f);
+            rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = pos;
+            rt.sizeDelta = size;
+
+            var tmp = go.GetComponent<TextMeshProUGUI>();
+            if (font != null) tmp.font = font;
+            tmp.fontSize = fontSize;
+            tmp.text = text;
+            tmp.alignment = align;
+            tmp.color = Color.white;
+            tmp.raycastTarget = false;
+            return go;
         }
     }
 }

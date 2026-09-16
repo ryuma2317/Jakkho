@@ -49,26 +49,50 @@ namespace Kannko.Scenario2.Editor
             var revealWorldSpace = worldUI.transform.Find("Scenario2RevealWorldSpace")?.gameObject;
 
             // =========================================================
-            // 1. BUILD 'STOP PLAYING?' DECISION PANEL ON LAPTOP SCREEN
+            // 1. BUILD 'STOP PLAYING?' CAMERA-FIXED WORLD SPACE PANEL UNDER WorldUI
             // =========================================================
-            Transform decisionTrans = screenContainer.Find("StopPlayingDecisionPanel");
+            Transform decisionTrans = worldUI.transform.Find("StopPlayingDecisionPanel");
+            if (decisionTrans == null) decisionTrans = screenContainer.Find("StopPlayingDecisionPanel");
             GameObject decisionGo;
             if (decisionTrans == null)
             {
-                decisionGo = new GameObject("StopPlayingDecisionPanel", typeof(RectTransform), typeof(Image), typeof(Outline), typeof(CanvasGroup));
-                decisionGo.transform.SetParent(screenContainer, false);
+                decisionGo = new GameObject("StopPlayingDecisionPanel",
+                    typeof(RectTransform),
+                    typeof(Canvas),
+                    typeof(CanvasScaler),
+                    typeof(GraphicRaycaster),
+                    typeof(UnityEngine.XR.Interaction.Toolkit.UI.TrackedDeviceGraphicRaycaster),
+                    typeof(CanvasGroup),
+                    typeof(Image),
+                    typeof(Outline),
+                    typeof(StopPlayingDecisionController));
+                decisionGo.transform.SetParent(worldUI.transform, false);
             }
             else
             {
                 decisionGo = decisionTrans.gameObject;
+                decisionGo.transform.SetParent(worldUI.transform, false);
             }
 
+            var decisionCanvas = GetOrAddComponent<Canvas>(decisionGo);
+            decisionCanvas.renderMode = RenderMode.WorldSpace;
+            decisionCanvas.sortingOrder = 24;
+            decisionCanvas.additionalShaderChannels = AdditionalCanvasShaderChannels.TexCoord1 | AdditionalCanvasShaderChannels.Normal | AdditionalCanvasShaderChannels.Tangent;
+
+            var decisionScaler = GetOrAddComponent<CanvasScaler>(decisionGo);
+            decisionScaler.dynamicPixelsPerUnit = 10f;
+
+            GetOrAddComponent<GraphicRaycaster>(decisionGo);
+            GetOrAddComponent<UnityEngine.XR.Interaction.Toolkit.UI.TrackedDeviceGraphicRaycaster>(decisionGo);
+            GetOrAddComponent<CanvasGroup>(decisionGo);
+            var decisionCtrl = GetOrAddComponent<StopPlayingDecisionController>(decisionGo);
+
             var decisionRt = decisionGo.GetComponent<RectTransform>();
-            decisionRt.anchorMin = new Vector2(0.5f, 0.5f);
-            decisionRt.anchorMax = new Vector2(0.5f, 0.5f);
+            decisionRt.position = new Vector3(0.00f, 1.32f, -0.71f);
+            decisionRt.eulerAngles = new Vector3(0f, 270f, 0f);
+            decisionRt.localScale = new Vector3(0.0008f, 0.0008f, 0.0008f);
+            decisionRt.sizeDelta = new Vector2(760f, 440f);
             decisionRt.pivot = new Vector2(0.5f, 0.5f);
-            decisionRt.sizeDelta = new Vector2(620f, 360f);
-            decisionRt.anchoredPosition = new Vector2(0f, 0f);
 
             var decisionImg = decisionGo.GetComponent<Image>();
             if (cardSprite != null)
@@ -425,10 +449,22 @@ namespace Kannko.Scenario2.Editor
             // =========================================================
             // 3. WIRE UP SERIALIZED REFERENCES IN INSPECTORS
             // =========================================================
+            var serializedDecision = new SerializedObject(decisionCtrl);
+            serializedDecision.FindProperty("m_DecisionPanel").objectReferenceValue = decisionGo;
+            serializedDecision.FindProperty("m_FloatingLaptopPanel").objectReferenceValue = floatingLaptopTrans.gameObject;
+            serializedDecision.FindProperty("m_EnlargedWifiPanel").objectReferenceValue = enlargedWifiPanel;
+            serializedDecision.FindProperty("m_ExitController").objectReferenceValue = exitCtrl;
+            serializedDecision.FindProperty("m_ContinueScenarioButton").objectReferenceValue = continueBtn;
+            serializedDecision.FindProperty("m_GetOutOfCafeButton").objectReferenceValue = getOutBtn;
+            serializedDecision.ApplyModifiedProperties();
+            decisionCtrl.EnsureCollidersAndInteractables();
+            decisionCtrl.SetupButtonListeners();
+
             var serializedExit = new SerializedObject(exitCtrl);
             serializedExit.FindProperty("m_ExitConfirmationPanel").objectReferenceValue = exitGo;
             serializedExit.FindProperty("m_FloatingLaptopPanel").objectReferenceValue = floatingLaptopTrans.gameObject;
             serializedExit.FindProperty("m_EnlargedWifiPanel").objectReferenceValue = enlargedWifiPanel;
+            serializedExit.FindProperty("m_StopPlayingDecisionPanel").objectReferenceValue = decisionGo;
             serializedExit.FindProperty("m_BackToScenarioButton").objectReferenceValue = backBtn;
             serializedExit.FindProperty("m_ExitScenarioButton").objectReferenceValue = exitConfirmBtn;
             serializedExit.ApplyModifiedProperties();
@@ -437,6 +473,8 @@ namespace Kannko.Scenario2.Editor
             {
                 var serializedBrowser = new SerializedObject(browserController);
                 serializedBrowser.FindProperty("m_StopPlayingDecisionPanel").objectReferenceValue = decisionGo;
+                serializedBrowser.FindProperty("m_FloatingLaptopPanel").objectReferenceValue = floatingLaptopTrans.gameObject;
+                serializedBrowser.FindProperty("m_DecisionController").objectReferenceValue = decisionCtrl;
                 serializedBrowser.FindProperty("m_ContinueScenarioButton").objectReferenceValue = continueBtn;
                 serializedBrowser.FindProperty("m_GetOutOfCafeButton").objectReferenceValue = getOutBtn;
                 serializedBrowser.FindProperty("m_ExitController").objectReferenceValue = exitCtrl;

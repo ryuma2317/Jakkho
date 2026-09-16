@@ -1,12 +1,7 @@
 // ===================================================================================
 // Scenario2SimulatorGuard.cs
-// Scenario2-specific guard that disables Editor-only testing tools when
-// running on a real VR headset device (non-Editor build).
-//
-// In the Unity Editor:   XR Interaction Simulator = ON, DesktopTesting_TEMP = ON
-// On a real VR device:   XR Interaction Simulator = OFF, DesktopTesting_TEMP = OFF
-//
-// Attach this component to any persistent Scenario2 GameObject (e.g., XR Origin (VR)).
+// Guard component that ensures test tools and duplicate simulators are disabled
+// so real physical VR headset and VR controllers have exclusive control.
 // ===================================================================================
 
 using UnityEngine;
@@ -14,31 +9,26 @@ using UnityEngine;
 namespace Kannko.Scenario2
 {
     /// <summary>
-    /// Disables the XR Interaction Simulator and DesktopTesting_TEMP components/GameObjects
-    /// when executing on a real VR device (non-Editor runtime).
-    /// In the Unity Editor all simulator tools remain active for testing.
+    /// Guard component that ensures test tools and duplicate simulators are disabled
+    /// so real physical VR headset and VR controllers have exclusive control.
     /// </summary>
     [AddComponentMenu("Scenario2/Simulator Guard")]
     [DisallowMultipleComponent]
     public class Scenario2SimulatorGuard : MonoBehaviour
     {
-        [Header("XR Simulator GameObjects to Disable on Device")]
-        [Tooltip("Drag the XR Interaction Simulator root GameObject here.")]
+        [Header("XR Simulator GameObjects to Disable")]
+        [Tooltip("Optional reference to XR Interaction Simulator root GameObject if present.")]
         [SerializeField] private GameObject m_XRInteractionSimulator;
 
-        [Tooltip("Drag the DesktopTesting_TEMP child GameObject here (under XR Origin).")]
+        [Tooltip("Optional reference to legacy DesktopTesting_TEMP if present.")]
         [SerializeField] private GameObject m_DesktopTestingTEMP;
 
         private void Awake()
         {
-#if !UNITY_EDITOR
-            DisableEditorOnlyTools();
-#else
-            Debug.Log("[Scenario2SimulatorGuard] Running in Unity Editor - XR Interaction Simulator and DesktopTesting_TEMP remain ACTIVE.");
-#endif
+            EnforceVRReadyState();
         }
 
-        private void DisableEditorOnlyTools()
+        private void EnforceVRReadyState()
         {
             GameObject sim = m_XRInteractionSimulator != null
                 ? m_XRInteractionSimulator
@@ -46,7 +36,7 @@ namespace Kannko.Scenario2
             if (sim != null)
             {
                 sim.SetActive(false);
-                Debug.Log("[Scenario2SimulatorGuard] XR Interaction Simulator DISABLED on device build.");
+                Debug.Log("[Scenario2SimulatorGuard] XR Interaction Simulator disabled to prevent duplicate simulator conflict.");
             }
 
             GameObject desktop = m_DesktopTestingTEMP != null
@@ -55,7 +45,7 @@ namespace Kannko.Scenario2
             if (desktop != null)
             {
                 desktop.SetActive(false);
-                Debug.Log("[Scenario2SimulatorGuard] DesktopTesting_TEMP DISABLED on device build.");
+                Debug.Log("[Scenario2SimulatorGuard] DesktopTesting_TEMP disabled for real VR controller readiness.");
             }
         }
     }

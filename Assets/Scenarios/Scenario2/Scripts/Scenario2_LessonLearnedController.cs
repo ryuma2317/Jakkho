@@ -141,9 +141,7 @@ namespace Kannko.Scenario2
         {
             if (!Application.isPlaying || !gameObject.activeInHierarchy) return;
 
-            HandleDesktopMouseClicks();
             HandleVRControllerRayClicks();
-            HandleKeyboardNavigation();
         }
 
         private IEnumerator PopOutAnimationRoutine()
@@ -437,6 +435,7 @@ namespace Kannko.Scenario2
 
         private void HandleVRControllerRayClicks()
         {
+            activeRayInteractors.RemoveAll(r => r == null);
             if (activeRayInteractors.Count == 0) ConfigureRayInteractors();
 
             for (int i = 0; i < activeRayInteractors.Count; i++)
@@ -455,41 +454,6 @@ namespace Kannko.Scenario2
                     if (DispatchHit(physHit.collider.gameObject)) return;
                 }
             }
-        }
-
-        private void HandleDesktopMouseClicks()
-        {
-            if (UnityEngine.InputSystem.Mouse.current == null ||
-                !UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame) return;
-
-            Camera cam = Camera.main;
-            if (cam == null) return;
-
-            Vector2 mousePos = UnityEngine.InputSystem.Mouse.current.position.ReadValue();
-            Ray mouseRay = cam.ScreenPointToRay(new Vector3(mousePos.x, mousePos.y, 0f));
-            if (Physics.Raycast(mouseRay, out RaycastHit mouseHit, 10f))
-            {
-                if (DispatchHit(mouseHit.collider.gameObject)) return;
-            }
-
-            Ray centerRay = cam.ScreenPointToRay(new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f));
-            if (Physics.Raycast(centerRay, out RaycastHit centerHit, 10f))
-            {
-                if (DispatchHit(centerHit.collider.gameObject)) return;
-            }
-        }
-
-        private void HandleKeyboardNavigation()
-        {
-            var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb == null) return;
-
-            if (kb.leftArrowKey.wasPressedThisFrame) PreviousLesson();
-            else if (kb.rightArrowKey.wasPressedThisFrame) NextLesson();
-            else if (kb.digit1Key.wasPressedThisFrame) ShowLesson(0);
-            else if (kb.digit2Key.wasPressedThisFrame) ShowLesson(1);
-            else if (kb.digit3Key.wasPressedThisFrame) ShowLesson(2);
-            else if (kb.digit4Key.wasPressedThisFrame) ShowLesson(3);
         }
 
         public bool DispatchHit(GameObject hitObj)

@@ -395,8 +395,10 @@ namespace Kannko.Scenario2.Editor
             so.FindProperty("m_TypingSpeed").floatValue = 0.025f;
             so.FindProperty("m_PunctuationPause").floatValue = 0.12f;
             so.FindProperty("m_AttachToMainCamera").boolValue = true;
+            so.FindProperty("m_PreserveLocalTransformOffsets").boolValue = true;
             so.FindProperty("m_CameraDistance").floatValue = 1.25f;
             so.FindProperty("m_CanvasScale").floatValue = 0.0011f;
+            so.FindProperty("m_AutoAdjustColliders").boolValue = true;
             so.FindProperty("m_BadgeTitle").stringValue = "◆ SCENARIO 2 BRIEFING";
 
             // Dialogue Lines (3 phrases)
