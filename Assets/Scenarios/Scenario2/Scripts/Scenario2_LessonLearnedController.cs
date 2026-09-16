@@ -351,6 +351,7 @@ namespace Kannko.Scenario2
             PlayClickSound();
             onMenuTriggered?.Invoke();
             Debug.Log("[Scenario2_LessonLearnedController] Return to Menu triggered.");
+            VRSetup.VRCardNavigationManager.navigateToScenarioSelectionDirectly = true;
 
             if (GameManager.Instance != null)
             {

@@ -39,6 +39,12 @@ namespace Kannko.Laptop
         [Tooltip("Reference to the EnlargedWifiPanel to restore when browser closes.")]
         [SerializeField] private GameObject m_EnlargedWifiPanel;
 
+        [Tooltip("The World Space FloatingLaptopPanel GameObject to hide upon victory debrief.")]
+        [SerializeField] private GameObject m_FloatingLaptopPanel;
+
+        [Tooltip("Reference to the Scenario 2 Lessons Learned Debrief panel.")]
+        [SerializeField] private GameObject m_LessonLearnedPanel;
+
         [Header("Browser Chrome Navigation Controls")]
         [SerializeField] private Button m_CloseButton;
         [SerializeField] private Button m_BackButton;
@@ -271,6 +277,36 @@ namespace Kannko.Laptop
             {
                 m_ExitController = UnityEngine.Object.FindFirstObjectByType<Scenario2.Scenario2ExitController>(FindObjectsInactive.Include);
             }
+
+            if (m_FloatingLaptopPanel == null)
+            {
+                Transform p = transform;
+                while (p != null && p.name != "FloatingLaptopPanel") p = p.parent;
+                if (p != null) m_FloatingLaptopPanel = p.gameObject;
+                if (m_FloatingLaptopPanel == null)
+                {
+                    var wui = GameObject.Find("WorldUI");
+                    if (wui != null)
+                    {
+                        var t = wui.transform.Find("FloatingLaptopPanel");
+                        if (t != null) m_FloatingLaptopPanel = t.gameObject;
+                    }
+                }
+            }
+
+            if (m_LessonLearnedPanel == null)
+            {
+                var wui = GameObject.Find("WorldUI");
+                if (wui != null)
+                {
+                    var t = wui.transform.Find("Scenario2_Lesson_Learned_Panel");
+                    if (t != null) m_LessonLearnedPanel = t.gameObject;
+                }
+                if (m_LessonLearnedPanel == null)
+                {
+                    m_LessonLearnedPanel = GameObject.Find("Scenario2_Lesson_Learned_Panel");
+                }
+            }
         }
 
         public void SetupButtonListeners()
@@ -360,7 +396,10 @@ namespace Kannko.Laptop
         }
 
         /// <summary>
-        /// Closes the browser and returns to the previous laptop / network interface.
+        /// Closes the browser when the player decides to leave the rogue captive portal.
+        /// Concludes Scenario 2 with VICTORY: The player spotted the Evil Twin trap,
+        /// refused to submit credentials, and left the browser.
+        /// Displays the Incident Debrief & Lessons Learned panel with the success outcome.
         /// </summary>
         public void CloseBrowser()
         {
@@ -376,29 +415,62 @@ namespace Kannko.Laptop
                 m_BrowserPanel.SetActive(false);
             }
 
-            // Restore the EnlargedWifiPanel flyout
-            if (m_EnlargedWifiPanel != null)
+            if (m_StopPlayingDecisionPanel != null)
             {
-                m_EnlargedWifiPanel.SetActive(true);
+                m_StopPlayingDecisionPanel.SetActive(false);
+            }
+
+            // Hide the FloatingLaptopPanel so the player's focus is fully on the 3D Lessons Learned Panel
+            if (m_FloatingLaptopPanel != null)
+            {
+                m_FloatingLaptopPanel.SetActive(false);
+            }
+
+            // Present the Scenario 2 Incident Debrief & Lessons Learned Panel
+            if (m_LessonLearnedPanel != null)
+            {
+                m_LessonLearnedPanel.SetActive(true);
+                var ctrl = m_LessonLearnedPanel.GetComponent<Scenario2.Scenario2_LessonLearnedController>();
+                if (ctrl != null)
+                {
+                    ctrl.ShowLesson(0);
+                }
+                Debug.Log("<color=#34D399><b>[Scenario 2]</b> Player closed rogue captive portal browser — VICTORY! Lessons Learned panel presented.</color>");
+            }
+            else
+            {
+                Debug.LogWarning("[JakkoFreeWifiBrowserController] Scenario2_Lesson_Learned_Panel not found! Restoring network list.");
+                if (m_EnlargedWifiPanel != null)
+                {
+                    m_EnlargedWifiPanel.SetActive(true);
+                }
+            }
+
+            // Record score and victory
+            if (ScoreTracker.Instance != null)
+            {
+                ScoreTracker.Instance.RecordOutcome(ScenarioManager.OutcomeType.Success);
+            }
+
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.CompleteScenario(200);
             }
 
             OnBrowserClosed?.Invoke();
-            Debug.Log("[JakkoFreeWifiBrowserController] Browser CLOSED. Returned to laptop network interface.");
         }
 
         /// <summary>
         /// Handles the browser navbar BackButton click.
-        /// Closes the captive portal, restores the network interface (EnlargedWifiPanel),
-        /// and displays the 'STOP PLAYING?' scenario exit decision card on the laptop screen.
+        /// Player decides to leave the rogue captive portal — triggers VICTORY and presents Lessons Learned.
         /// </summary>
         public void OnBackButtonClicked()
         {
             if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
             m_LastClickTime = Time.unscaledTime;
 
-            Debug.Log("[JakkoFreeWifiBrowserController] Back button clicked: Closing captive portal and presenting STOP PLAYING decision.");
+            Debug.Log("[JakkoFreeWifiBrowserController] Back button clicked: Player leaving rogue captive portal — VICTORY!");
             CloseBrowser();
-            ShowStopPlayingDecision();
         }
 
         public void ShowStopPlayingDecision()
@@ -436,25 +508,8 @@ namespace Kannko.Laptop
             if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
             m_LastClickTime = Time.unscaledTime;
 
-            Debug.Log("[JakkoFreeWifiBrowserController] [ Get Out of This Cafe ] clicked: Transitioning to camera-facing exit confirmation.");
-            HideStopPlayingDecision();
-
-            if (m_ExitController != null)
-            {
-                m_ExitController.ShowExitConfirmation();
-            }
-            else
-            {
-                var exitCtrl = UnityEngine.Object.FindFirstObjectByType<Scenario2.Scenario2ExitController>(FindObjectsInactive.Include);
-                if (exitCtrl != null)
-                {
-                    exitCtrl.ShowExitConfirmation();
-                }
-                else
-                {
-                    Debug.LogWarning("[JakkoFreeWifiBrowserController] Scenario2ExitController not found in scene!");
-                }
-            }
+            Debug.Log("[JakkoFreeWifiBrowserController] [ Get Out of This Cafe ] clicked: Player leaving rogue portal — VICTORY!");
+            CloseBrowser();
         }
 
         private void OnRefreshClicked()

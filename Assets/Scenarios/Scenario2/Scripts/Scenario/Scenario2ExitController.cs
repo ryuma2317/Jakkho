@@ -241,6 +241,8 @@ namespace Kannko.Scenario2
         {
             Debug.Log("[Scenario2ExitController] Loading scenario selection / main menu...");
 
+            VRSetup.VRCardNavigationManager.navigateToScenarioSelectionDirectly = true;
+
             if (GameManager.Instance != null)
             {
                 GameManager.Instance.LoadScenarioSelection();
