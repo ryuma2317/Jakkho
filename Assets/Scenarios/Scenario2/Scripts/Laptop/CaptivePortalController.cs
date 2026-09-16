@@ -58,6 +58,18 @@ namespace Kannko.Laptop
         [Header("Attack Reveal Controls")]
         [SerializeField] private Button m_ReturnToLaptopButton;
         [SerializeField] private Button m_CloseRevealButton;
+
+        [Header("Attacker Telemetry Panel")]
+        [SerializeField] private GameObject m_AttackerTelemetryPanel;
+        [SerializeField] private Button m_ViewAttackerInfoButton;
+        [SerializeField] private Button m_BackFromAttackerInfoButton;
+        [SerializeField] private Button m_AttackerInfoReturnToLaptopButton;
+
+        [Header("Lesson Learned Panel")]
+        [SerializeField] private GameObject m_LessonLearnedPanel;
+        [SerializeField] private Button m_ViewLessonLearnedButton;
+        [SerializeField] private Button m_BackFromLessonLearnedButton;
+        [SerializeField] private Button m_LessonLearnedReturnToLaptopButton;
         [SerializeField] private TextMeshProUGUI m_WarningTitleText;
         [SerializeField] private TextMeshProUGUI m_TrappedHeadlineText;
         [SerializeField] private TextMeshProUGUI m_ExplanationBodyText;
@@ -278,6 +290,13 @@ namespace Kannko.Laptop
                     if (btn != null) m_ReturnToLaptopButton = btn.GetComponent<Button>();
                 }
 
+                if (m_ViewAttackerInfoButton == null || !m_ViewAttackerInfoButton.transform.IsChildOf(m_AttackRevealPanel.transform))
+                {
+                    var btn = m_AttackRevealPanel.transform.Find("ActionButtons/ViewAttackerInfoButton");
+                    if (btn == null) btn = m_AttackRevealPanel.transform.Find("ViewAttackerInfoButton");
+                    if (btn != null) m_ViewAttackerInfoButton = btn.GetComponent<Button>();
+                }
+
                 if (m_CloseRevealButton == null || !m_CloseRevealButton.transform.IsChildOf(m_AttackRevealPanel.transform))
                 {
                     var btn = m_AttackRevealPanel.transform.Find("CloseRevealButton");
@@ -315,6 +334,61 @@ namespace Kannko.Laptop
                     if (txt != null) m_AttackerSummaryText = txt.GetComponent<TextMeshProUGUI>();
                 }
             }
+
+            // Attacker Telemetry Panel child controls
+            if (m_AttackerTelemetryPanel == null && m_RevealWorldSpaceCanvas != null)
+            {
+                var panel = m_RevealWorldSpaceCanvas.transform.Find("AttackerTelemetryPanel");
+                if (panel != null) m_AttackerTelemetryPanel = panel.gameObject;
+            }
+
+            if (m_AttackerTelemetryPanel != null)
+            {
+                if (m_ViewLessonLearnedButton == null || !m_ViewLessonLearnedButton.transform.IsChildOf(m_AttackerTelemetryPanel.transform))
+                {
+                    var btn = m_AttackerTelemetryPanel.transform.Find("ActionButtons/ViewLessonLearnedButton");
+                    if (btn == null) btn = m_AttackerTelemetryPanel.transform.Find("ViewLessonLearnedButton");
+                    if (btn != null) m_ViewLessonLearnedButton = btn.GetComponent<Button>();
+                }
+
+                if (m_BackFromAttackerInfoButton == null || !m_BackFromAttackerInfoButton.transform.IsChildOf(m_AttackerTelemetryPanel.transform))
+                {
+                    var btn = m_AttackerTelemetryPanel.transform.Find("ActionButtons/BackFromAttackerInfoButton");
+                    if (btn == null) btn = m_AttackerTelemetryPanel.transform.Find("BackFromAttackerInfoButton");
+                    if (btn != null) m_BackFromAttackerInfoButton = btn.GetComponent<Button>();
+                }
+
+                if (m_AttackerInfoReturnToLaptopButton == null || !m_AttackerInfoReturnToLaptopButton.transform.IsChildOf(m_AttackerTelemetryPanel.transform))
+                {
+                    var btn = m_AttackerTelemetryPanel.transform.Find("ActionButtons/ReturnToLaptopButton");
+                    if (btn == null) btn = m_AttackerTelemetryPanel.transform.Find("ReturnToLaptopButton");
+                    if (btn != null) m_AttackerInfoReturnToLaptopButton = btn.GetComponent<Button>();
+                }
+            }
+
+            // Lesson Learned Panel child controls
+            if (m_LessonLearnedPanel == null && m_RevealWorldSpaceCanvas != null)
+            {
+                var panel = m_RevealWorldSpaceCanvas.transform.Find("LessonLearnedPanel");
+                if (panel != null) m_LessonLearnedPanel = panel.gameObject;
+            }
+
+            if (m_LessonLearnedPanel != null)
+            {
+                if (m_BackFromLessonLearnedButton == null || !m_BackFromLessonLearnedButton.transform.IsChildOf(m_LessonLearnedPanel.transform))
+                {
+                    var btn = m_LessonLearnedPanel.transform.Find("ActionButtons/BackFromLessonLearnedButton");
+                    if (btn == null) btn = m_LessonLearnedPanel.transform.Find("BackFromLessonLearnedButton");
+                    if (btn != null) m_BackFromLessonLearnedButton = btn.GetComponent<Button>();
+                }
+
+                if (m_LessonLearnedReturnToLaptopButton == null || !m_LessonLearnedReturnToLaptopButton.transform.IsChildOf(m_LessonLearnedPanel.transform))
+                {
+                    var btn = m_LessonLearnedPanel.transform.Find("ActionButtons/ReturnToLaptopButton");
+                    if (btn == null) btn = m_LessonLearnedPanel.transform.Find("ReturnToLaptopButton");
+                    if (btn != null) m_LessonLearnedReturnToLaptopButton = btn.GetComponent<Button>();
+                }
+            }
         }
 
         public void SetupButtonListeners()
@@ -337,6 +411,42 @@ namespace Kannko.Laptop
                 m_ReturnToLaptopButton.onClick.AddListener(OnReturnToLaptopClicked);
             }
 
+            if (m_ViewAttackerInfoButton != null)
+            {
+                m_ViewAttackerInfoButton.onClick.RemoveListener(OnViewAttackerInfoClicked);
+                m_ViewAttackerInfoButton.onClick.AddListener(OnViewAttackerInfoClicked);
+            }
+
+            if (m_ViewLessonLearnedButton != null)
+            {
+                m_ViewLessonLearnedButton.onClick.RemoveListener(OnViewLessonLearnedClicked);
+                m_ViewLessonLearnedButton.onClick.AddListener(OnViewLessonLearnedClicked);
+            }
+
+            if (m_BackFromAttackerInfoButton != null)
+            {
+                m_BackFromAttackerInfoButton.onClick.RemoveListener(OnBackFromAttackerInfoClicked);
+                m_BackFromAttackerInfoButton.onClick.AddListener(OnBackFromAttackerInfoClicked);
+            }
+
+            if (m_AttackerInfoReturnToLaptopButton != null)
+            {
+                m_AttackerInfoReturnToLaptopButton.onClick.RemoveListener(OnReturnToLaptopClicked);
+                m_AttackerInfoReturnToLaptopButton.onClick.AddListener(OnReturnToLaptopClicked);
+            }
+
+            if (m_BackFromLessonLearnedButton != null)
+            {
+                m_BackFromLessonLearnedButton.onClick.RemoveListener(OnBackFromLessonLearnedClicked);
+                m_BackFromLessonLearnedButton.onClick.AddListener(OnBackFromLessonLearnedClicked);
+            }
+
+            if (m_LessonLearnedReturnToLaptopButton != null)
+            {
+                m_LessonLearnedReturnToLaptopButton.onClick.RemoveListener(OnReturnToLaptopClicked);
+                m_LessonLearnedReturnToLaptopButton.onClick.AddListener(OnReturnToLaptopClicked);
+            }
+
             if (m_CloseRevealButton != null)
             {
                 m_CloseRevealButton.onClick.RemoveListener(OnReturnToLaptopClicked);
@@ -349,6 +459,12 @@ namespace Kannko.Laptop
             if (m_ConnectButton != null) m_ConnectButton.onClick.RemoveListener(OnConnectClicked);
             if (m_FillDemoButton != null) m_FillDemoButton.onClick.RemoveListener(OnFillDemoClicked);
             if (m_ReturnToLaptopButton != null) m_ReturnToLaptopButton.onClick.RemoveListener(OnReturnToLaptopClicked);
+            if (m_ViewAttackerInfoButton != null) m_ViewAttackerInfoButton.onClick.RemoveListener(OnViewAttackerInfoClicked);
+            if (m_ViewLessonLearnedButton != null) m_ViewLessonLearnedButton.onClick.RemoveListener(OnViewLessonLearnedClicked);
+            if (m_BackFromAttackerInfoButton != null) m_BackFromAttackerInfoButton.onClick.RemoveListener(OnBackFromAttackerInfoClicked);
+            if (m_AttackerInfoReturnToLaptopButton != null) m_AttackerInfoReturnToLaptopButton.onClick.RemoveListener(OnReturnToLaptopClicked);
+            if (m_BackFromLessonLearnedButton != null) m_BackFromLessonLearnedButton.onClick.RemoveListener(OnBackFromLessonLearnedClicked);
+            if (m_LessonLearnedReturnToLaptopButton != null) m_LessonLearnedReturnToLaptopButton.onClick.RemoveListener(OnReturnToLaptopClicked);
             if (m_CloseRevealButton != null) m_CloseRevealButton.onClick.RemoveListener(OnReturnToLaptopClicked);
         }
 
@@ -363,6 +479,8 @@ namespace Kannko.Laptop
             if (m_InitialPortalCard != null) m_InitialPortalCard.SetActive(false);
             if (m_RevealWorldSpaceCanvas != null) m_RevealWorldSpaceCanvas.SetActive(false);
             if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(false);
+            if (m_AttackerTelemetryPanel != null) m_AttackerTelemetryPanel.SetActive(false);
+            if (m_LessonLearnedPanel != null) m_LessonLearnedPanel.SetActive(false);
             if (m_WifiConnectedSuccessPanel != null) m_WifiConnectedSuccessPanel.SetActive(false);
             if (m_CaptivePortalPanel != null) m_CaptivePortalPanel.SetActive(true);
 
@@ -534,6 +652,8 @@ namespace Kannko.Laptop
             // Laptop browser keeps m_CaptivePortalPanel visible so physical context is preserved
             if (m_InitialPortalCard != null) m_InitialPortalCard.SetActive(false);
             if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(true);
+            if (m_AttackerTelemetryPanel != null) m_AttackerTelemetryPanel.SetActive(false);
+            if (m_LessonLearnedPanel != null) m_LessonLearnedPanel.SetActive(false);
 
             if (m_AttackerLogCard != null)
             {
@@ -579,6 +699,70 @@ namespace Kannko.Laptop
 
             EnsureCollidersAndInteractables();
             Debug.Log("[CaptivePortalController] Attack Reveal Panel displayed: YOU WERE TRAPPED!");
+        }
+
+        /// <summary>
+        /// Navigates to the Attacker Telemetry Panel detailing intercepted victim data (Rogue Wi-Fi).
+        /// </summary>
+        public void OnViewAttackerInfoClicked()
+        {
+            if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
+            m_LastClickTime = Time.unscaledTime;
+
+            if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(false);
+            if (m_LessonLearnedPanel != null) m_LessonLearnedPanel.SetActive(false);
+            if (m_AttackerTelemetryPanel != null) m_AttackerTelemetryPanel.SetActive(true);
+
+            EnsureCollidersAndInteractables();
+            Debug.Log("[CaptivePortalController] Navigated to Attacker Telemetry Panel.");
+        }
+
+        /// <summary>
+        /// Returns from Attacker Telemetry Panel back to the main Attack Reveal Warning panel.
+        /// </summary>
+        public void OnBackFromAttackerInfoClicked()
+        {
+            if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
+            m_LastClickTime = Time.unscaledTime;
+
+            if (m_AttackerTelemetryPanel != null) m_AttackerTelemetryPanel.SetActive(false);
+            if (m_LessonLearnedPanel != null) m_LessonLearnedPanel.SetActive(false);
+            if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(true);
+
+            EnsureCollidersAndInteractables();
+            Debug.Log("[CaptivePortalController] Returned to Attack Reveal Warning Panel.");
+        }
+
+        /// <summary>
+        /// Navigates to the Lesson Learned Panel detailing prevention steps.
+        /// </summary>
+        public void OnViewLessonLearnedClicked()
+        {
+            if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
+            m_LastClickTime = Time.unscaledTime;
+
+            if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(false);
+            if (m_AttackerTelemetryPanel != null) m_AttackerTelemetryPanel.SetActive(false);
+            if (m_LessonLearnedPanel != null) m_LessonLearnedPanel.SetActive(true);
+
+            EnsureCollidersAndInteractables();
+            Debug.Log("[CaptivePortalController] Navigated to Lesson Learned Panel.");
+        }
+
+        /// <summary>
+        /// Returns from Lesson Learned Panel back to Attacker Telemetry Panel.
+        /// </summary>
+        public void OnBackFromLessonLearnedClicked()
+        {
+            if (Application.isPlaying && Time.unscaledTime - m_LastClickTime < m_ClickDebounceTime) return;
+            m_LastClickTime = Time.unscaledTime;
+
+            if (m_LessonLearnedPanel != null) m_LessonLearnedPanel.SetActive(false);
+            if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(false);
+            if (m_AttackerTelemetryPanel != null) m_AttackerTelemetryPanel.SetActive(true);
+
+            EnsureCollidersAndInteractables();
+            Debug.Log("[CaptivePortalController] Returned to Attacker Telemetry Panel.");
         }
 
         /// <summary>
@@ -630,6 +814,8 @@ namespace Kannko.Laptop
             if (m_WifiConnectedSuccessPanel != null) m_WifiConnectedSuccessPanel.SetActive(false);
             if (m_CaptivePortalPanel != null) m_CaptivePortalPanel.SetActive(false);
             if (m_AttackRevealPanel != null) m_AttackRevealPanel.SetActive(false);
+            if (m_AttackerTelemetryPanel != null) m_AttackerTelemetryPanel.SetActive(false);
+            if (m_LessonLearnedPanel != null) m_LessonLearnedPanel.SetActive(false);
             if (m_AttackerLogCard != null) m_AttackerLogCard.SetActive(false);
             if (m_InitialPortalCard != null) m_InitialPortalCard.SetActive(true);
 
@@ -659,6 +845,36 @@ namespace Kannko.Laptop
             if (m_ReturnToLaptopButton != null)
             {
                 SetupElementColliderAndInteractable(m_ReturnToLaptopButton.gameObject, OnReturnToLaptopClicked);
+            }
+
+            if (m_ViewAttackerInfoButton != null)
+            {
+                SetupElementColliderAndInteractable(m_ViewAttackerInfoButton.gameObject, OnViewAttackerInfoClicked);
+            }
+
+            if (m_BackFromAttackerInfoButton != null)
+            {
+                SetupElementColliderAndInteractable(m_BackFromAttackerInfoButton.gameObject, OnBackFromAttackerInfoClicked);
+            }
+
+            if (m_AttackerInfoReturnToLaptopButton != null)
+            {
+                SetupElementColliderAndInteractable(m_AttackerInfoReturnToLaptopButton.gameObject, OnReturnToLaptopClicked);
+            }
+
+            if (m_ViewLessonLearnedButton != null)
+            {
+                SetupElementColliderAndInteractable(m_ViewLessonLearnedButton.gameObject, OnViewLessonLearnedClicked);
+            }
+
+            if (m_BackFromLessonLearnedButton != null)
+            {
+                SetupElementColliderAndInteractable(m_BackFromLessonLearnedButton.gameObject, OnBackFromLessonLearnedClicked);
+            }
+
+            if (m_LessonLearnedReturnToLaptopButton != null)
+            {
+                SetupElementColliderAndInteractable(m_LessonLearnedReturnToLaptopButton.gameObject, OnReturnToLaptopClicked);
             }
 
             if (m_CloseRevealButton != null)
@@ -721,6 +937,48 @@ namespace Kannko.Laptop
             {
                 m_LastClickTime = Time.unscaledTime;
                 OnFillDemoClicked();
+                return true;
+            }
+
+            if (IsHitOnTarget(hitObj, m_ViewAttackerInfoButton?.gameObject))
+            {
+                m_LastClickTime = Time.unscaledTime;
+                OnViewAttackerInfoClicked();
+                return true;
+            }
+
+            if (IsHitOnTarget(hitObj, m_BackFromAttackerInfoButton?.gameObject))
+            {
+                m_LastClickTime = Time.unscaledTime;
+                OnBackFromAttackerInfoClicked();
+                return true;
+            }
+
+            if (IsHitOnTarget(hitObj, m_AttackerInfoReturnToLaptopButton?.gameObject))
+            {
+                m_LastClickTime = Time.unscaledTime;
+                OnReturnToLaptopClicked();
+                return true;
+            }
+
+            if (IsHitOnTarget(hitObj, m_ViewLessonLearnedButton?.gameObject))
+            {
+                m_LastClickTime = Time.unscaledTime;
+                OnViewLessonLearnedClicked();
+                return true;
+            }
+
+            if (IsHitOnTarget(hitObj, m_BackFromLessonLearnedButton?.gameObject))
+            {
+                m_LastClickTime = Time.unscaledTime;
+                OnBackFromLessonLearnedClicked();
+                return true;
+            }
+
+            if (IsHitOnTarget(hitObj, m_LessonLearnedReturnToLaptopButton?.gameObject))
+            {
+                m_LastClickTime = Time.unscaledTime;
+                OnReturnToLaptopClicked();
                 return true;
             }
 
